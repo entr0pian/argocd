@@ -1,0 +1,8 @@
+repoURL: "https://github.com/entr0pian/helm-charts.git"
+targetRevision: main
+
+destinationServer: "https://kubernetes.default.svc"
+
+notifications:
+  slack:
+    channel: deployments

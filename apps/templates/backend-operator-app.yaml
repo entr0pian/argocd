@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskapp-backend-operator-{{ .Values.env }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: backend-operator
+    helm:
+      releaseName: taskapp-backend-operator
+  destination:
+    server: {{ .Values.destinationServer | quote }}
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

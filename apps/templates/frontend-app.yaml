@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskapp-frontend-{{ .Values.env }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: frontend
+    helm:
+      releaseName: taskapp-frontend
+  destination:
+    server: {{ .Values.destinationServer | quote }}
+    namespace: default
+  {{- include "taskapp.ignoreDifferences" (dict "kind" "Deployment") | nindent 2 }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

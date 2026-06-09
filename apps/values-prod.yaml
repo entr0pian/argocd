@@ -1,0 +1,16 @@
+env: prod
+
+destinationServer: "https://172.19.0.4:6443"
+
+database:
+  secretPath: taskapp/prod/database
+
+backend:
+  awsCredentialsEnabled: true
+  awsCredentialsSecretPath: taskapp/prod/backend-credentials
+  sqsQueueUrl: "https://sqs.eu-west-1.amazonaws.com/425832464758/taskapp-prod-tasks"
+  sqsRegion: eu-west-1
+  kedaEnabled: true
+
+crossplane:
+  secretPath: taskapp/prod/crossplane-aws

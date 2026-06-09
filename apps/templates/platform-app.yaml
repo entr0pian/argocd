@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskapp-platform-{{ .Values.env }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: platform
+    helm:
+      releaseName: taskapp-platform
+      values: |
+        prometheusRules:
+          enabled: true
+        grafanaDashboard:
+          enabled: true
+      parameters:
+        - name: externalSecrets.secretPath
+          value: {{ .Values.database.secretPath | quote }}
+        - name: awsCredentials.secretPath
+          value: {{ .Values.backend.awsCredentialsSecretPath | quote }}
+        - name: crossplane.secretPath
+          value: {{ .Values.crossplane.secretPath | quote }}
+  destination:
+    server: {{ .Values.destinationServer | quote }}
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskapp-backend-{{ .Values.env }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-smoke-test-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: backend
+    helm:
+      releaseName: taskapp-backend
+      parameters:
+        - name: awsCredentials.enabled
+          value: {{ .Values.backend.awsCredentialsEnabled | quote }}
+        - name: sqs.queueUrl
+          value: {{ .Values.backend.sqsQueueUrl | quote }}
+        - name: sqs.region
+          value: {{ .Values.backend.sqsRegion | quote }}
+        - name: keda.enabled
+          value: {{ .Values.backend.kedaEnabled | quote }}
+  destination:
+    server: {{ .Values.destinationServer | quote }}
+    namespace: default
+  {{- include "taskapp.ignoreDifferences" (dict "kind" "Deployment") | nindent 2 }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
