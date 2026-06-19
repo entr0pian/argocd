@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crossplane-compositions-{{ .Values.env }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: crossplane-compositions
+    helm:
+      releaseName: crossplane-compositions
+  destination:
+    server: {{ .Values.destinationServer | quote }}
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
