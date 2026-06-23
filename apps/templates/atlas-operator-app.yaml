@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: atlas-operator-{{ .Values.env }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+spec:
+  project: default
+  source:
+    repoURL: "ghcr.io/ariga/charts"
+    chart: atlas-operator
+    targetRevision: "0.7.36"
+    helm:
+      releaseName: atlas-operator
+  destination:
+    server: {{ .Values.destinationServer | quote }}
+    namespace: atlas-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
