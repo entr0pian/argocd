@@ -15,20 +15,11 @@ spec:
     targetRevision: {{ .Values.targetRevision | quote }}
     path: backend
     helm:
-      releaseName: taskapp-backend
-      parameters:
-        - name: awsCredentials.enabled
-          value: {{ .Values.backend.awsCredentialsEnabled | quote }}
-        - name: sqs.queueUrl
-          value: {{ .Values.backend.sqsQueueUrl | quote }}
-        - name: sqs.region
-          value: {{ .Values.backend.sqsRegion | quote }}
-        - name: keda.enabled
-          value: {{ .Values.backend.kedaEnabled | quote }}
+      releaseName: taskapp
   destination:
     server: {{ .Values.destinationServer | quote }}
     namespace: default
-  {{- include "taskapp.ignoreDifferences" (dict "kind" "Deployment") | nindent 2 }}
+  {{- include "taskapp.ignoreDifferences" (dict "kind" "Backend") | nindent 2 }}
   syncPolicy:
     automated:
       prune: true

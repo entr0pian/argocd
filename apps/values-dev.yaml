@@ -2,15 +2,6 @@ env: dev
 
 destinationServer: "https://172.19.0.2:6443"
 
-database:
-  secretPath: taskapp/dev/database
-
-backend:
-  awsCredentialsEnabled: true
-  awsCredentialsSecretPath: taskapp/dev/backend-credentials
-  sqsQueueUrl: ""
-  sqsRegion: eu-west-1
-  kedaEnabled: false
 
 crossplane:
   secretPath: taskapp/dev/crossplane-aws

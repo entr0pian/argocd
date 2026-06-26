@@ -21,10 +21,6 @@ spec:
         grafanaDashboard:
           enabled: true
       parameters:
-        - name: externalSecrets.secretPath
-          value: {{ .Values.database.secretPath | quote }}
-        - name: awsCredentials.secretPath
-          value: {{ .Values.backend.awsCredentialsSecretPath | quote }}
         - name: crossplane.secretPath
           value: {{ .Values.crossplane.secretPath | quote }}
   destination:
