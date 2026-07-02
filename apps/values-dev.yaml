@@ -5,3 +5,7 @@ destinationServer: "https://172.19.0.2:6443"
 
 crossplane:
   secretPath: taskapp/dev/crossplane-aws
+
+backend:
+  image:
+    tag: "27a621a534ab788d32d5651269c1492b72188f57"
