@@ -3,6 +3,10 @@ targetRevision: main
 
 destinationServer: "https://kubernetes.default.svc"
 
+backend:
+  repoURL: "https://github.com/entr0pian/backend.git"
+  targetRevision: main
+
 notifications:
   slack:
     channel: deployments
