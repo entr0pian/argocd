@@ -8,4 +8,4 @@ crossplane:
 
 backend:
   image:
-    tag: "27a621a534ab788d32d5651269c1492b72188f57"
+    tag: "9b00248e8806e082f1221c00da3d1294041dcb21"
