@@ -9,3 +9,12 @@ crossplane:
 backend:
   image:
     tag: "56f301337e1e5a9896d3b30b732fa3e49be19cce"
+
+frontend:
+  image:
+    tag: "52e331eb0587dd7d9285cba7fc91d4461e51b65e"
+
+operator:
+  image:
+    tag: "4dc9129fa7b4751a0bd99b967ce50b61d818287d"
+  credentialsSecretPath: taskapp/dev/backend-credentials
