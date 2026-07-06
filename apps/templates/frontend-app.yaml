@@ -10,11 +10,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ .Values.repoURL | quote }}
-    targetRevision: {{ .Values.targetRevision | quote }}
-    path: frontend
+    repoURL: {{ .Values.frontend.repoURL | quote }}
+    targetRevision: {{ .Values.frontend.targetRevision | quote }}
+    path: chart
     helm:
       releaseName: taskapp-frontend
+      parameters:
+        - name: image.tag
+          value: {{ .Values.frontend.image.tag | quote }}
   destination:
     server: {{ .Values.destinationServer | quote }}
     namespace: default

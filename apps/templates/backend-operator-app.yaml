@@ -10,11 +10,16 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ .Values.repoURL | quote }}
-    targetRevision: {{ .Values.targetRevision | quote }}
-    path: backend-operator
+    repoURL: {{ .Values.operator.repoURL | quote }}
+    targetRevision: {{ .Values.operator.targetRevision | quote }}
+    path: chart
     helm:
       releaseName: taskapp-backend-operator
+      parameters:
+        - name: controllerManager.manager.image.tag
+          value: {{ .Values.operator.image.tag | quote }}
+        - name: controllerManager.manager.credentialsSecretPath
+          value: {{ .Values.operator.credentialsSecretPath | quote }}
   destination:
     server: {{ .Values.destinationServer | quote }}
     namespace: default

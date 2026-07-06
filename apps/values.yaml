@@ -7,6 +7,14 @@ backend:
   repoURL: "https://github.com/entr0pian/backend.git"
   targetRevision: main
 
+frontend:
+  repoURL: "https://github.com/entr0pian/frontend.git"
+  targetRevision: main
+
+operator:
+  repoURL: "https://github.com/entr0pian/backend-operator.git"
+  targetRevision: main
+
 notifications:
   slack:
     channel: deployments
