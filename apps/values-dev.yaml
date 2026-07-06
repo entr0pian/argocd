@@ -8,3 +8,6 @@ backend:
 operator:
   image:
     tag: ad520886b3e30842cda3b937163ccf2dd3301364
+frontend:
+  image:
+    tag: 49b19a6ba7740391c78a65ff2977ac6a341930a6
