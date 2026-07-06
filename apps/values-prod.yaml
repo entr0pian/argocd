@@ -10,5 +10,5 @@ frontend:
     tag: "d50b47cf5b502c2f6fe9b1bb642982021aa018fb"
 operator:
   image:
-    tag: "4dc9129fa7b4751a0bd99b967ce50b61d818287d"
+    tag: "112108c11c371eb6a36c4cea1b1951624a874e40"
   credentialsSecretPath: taskapp/prod/backend-credentials
