@@ -4,7 +4,7 @@ crossplane:
   secretPath: taskapp/dev/crossplane-aws
 backend:
   image:
-    tag: "c3f5e94f23e798b460d8c9811a7fd0976913cc45"
+    tag: "f84c7a80d3ac917285f7184a42e313fd357f8ee9"
 operator:
   image:
     tag: ad520886b3e30842cda3b937163ccf2dd3301364
