@@ -3,6 +3,30 @@ targetRevision: main
 
 destinationServer: "https://kubernetes.default.svc"
 
+kubePrometheusStack:
+  enabled: true
+
+externalSecrets:
+  enabled: true
+
+keda:
+  enabled: true
+
+crossplane:
+  enabled: true
+
+crossplaneProviderConfig:
+  enabled: true
+
+crossplaneCompositions:
+  enabled: true
+
+platform:
+  enabled: true
+
+atlasOperator:
+  enabled: true
+
 backend:
   repoURL: "https://github.com/entr0pian/backend.git"
   targetRevision: main
@@ -12,6 +36,7 @@ frontend:
   targetRevision: main
 
 operator:
+  enabled: true
   repoURL: "https://github.com/entr0pian/backend-operator.git"
   targetRevision: main
 

@@ -3,9 +3,11 @@ destinationServer: "https://172.19.0.4:6443"
 crossplane:
   secretPath: taskapp/prod/crossplane-aws
 backend:
+  enabled: true
   image:
     tag: "5005016e5bedda1b325f73da27410943e3c75a98"
 frontend:
+  enabled: true
   image:
     tag: "d50b47cf5b502c2f6fe9b1bb642982021aa018fb"
 operator:
