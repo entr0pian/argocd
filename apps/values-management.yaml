@@ -6,6 +6,9 @@ externalSecrets:
 argocdWriteToken:
   secretPath: taskapp/platform/argocd-write-token
 
+applicationRepositoryOperator:
+  enabled: true
+
 kubePrometheusStack:
   enabled: false
 

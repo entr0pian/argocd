@@ -50,6 +50,10 @@ operator:
   repoURL: "https://github.com/entr0pian/backend-operator.git"
   targetRevision: main
 
+applicationRepositoryOperator:
+  repoURL: "https://github.com/entr0pian/application-repository-operator.git"
+  targetRevision: main
+
 notifications:
   slack:
     channel: deployments

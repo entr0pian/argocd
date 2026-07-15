@@ -1,0 +1,26 @@
+{{- if .Values.applicationRepositoryOperator.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-repository-operator-{{ .Values.env }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.applicationRepositoryOperator.repoURL | quote }}
+    targetRevision: {{ .Values.applicationRepositoryOperator.targetRevision | quote }}
+    path: chart
+    helm:
+      releaseName: application-repository-operator
+  destination:
+    server: {{ .Values.destinationServer | quote }}
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+{{- end }}
