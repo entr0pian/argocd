@@ -17,10 +17,12 @@ spec:
     helm:
       releaseName: taskapp-platform
       values: |
+        limitRange:
+          enabled: {{ .Values.platform.limitRange.enabled }}
         prometheusRules:
-          enabled: true
+          enabled: {{ .Values.platform.prometheusRules.enabled }}
         grafanaDashboard:
-          enabled: true
+          enabled: {{ .Values.platform.grafanaDashboard.enabled }}
       parameters:
         - name: crossplane.secretPath
           value: {{ .Values.crossplane.secretPath | quote }}

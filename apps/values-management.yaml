@@ -1,0 +1,33 @@
+env: management
+
+externalSecrets:
+  enabled: true
+
+kubePrometheusStack:
+  enabled: false
+
+keda:
+  enabled: false
+
+crossplane:
+  enabled: false
+
+crossplaneProviderConfig:
+  enabled: false
+
+crossplaneCompositions:
+  enabled: false
+
+atlasOperator:
+  enabled: false
+
+operator:
+  enabled: false
+
+platform:
+  limitRange:
+    enabled: false
+  prometheusRules:
+    enabled: false
+  grafanaDashboard:
+    enabled: false

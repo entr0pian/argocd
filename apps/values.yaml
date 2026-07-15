@@ -23,6 +23,12 @@ crossplaneCompositions:
 
 platform:
   enabled: true
+  limitRange:
+    enabled: true
+  prometheusRules:
+    enabled: true
+  grafanaDashboard:
+    enabled: true
 
 atlasOperator:
   enabled: true
