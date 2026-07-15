@@ -3,6 +3,9 @@ env: management
 externalSecrets:
   enabled: true
 
+argocdWriteToken:
+  secretPath: taskapp/platform/argocd-write-token
+
 kubePrometheusStack:
   enabled: false
 

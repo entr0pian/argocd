@@ -16,6 +16,9 @@ crossplane:
   enabled: true
   secretPath: ""
 
+argocdWriteToken:
+  secretPath: ""
+
 crossplaneProviderConfig:
   enabled: true
 

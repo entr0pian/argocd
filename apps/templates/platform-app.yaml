@@ -26,6 +26,8 @@ spec:
       parameters:
         - name: crossplane.secretPath
           value: {{ .Values.crossplane.secretPath | quote }}
+        - name: argocdWriteToken.secretPath
+          value: {{ .Values.argocdWriteToken.secretPath | quote }}
   destination:
     server: {{ .Values.destinationServer | quote }}
     namespace: default
