@@ -7,6 +7,7 @@ applicationRepositoryOperator:
   enabled: true
   image:
     tag: 1cfd72a1993d3d9c7fad002a70dd94628c85d26a
+  requeueInterval: "30s"
 kubePrometheusStack:
   enabled: false
 keda:

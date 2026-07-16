@@ -19,6 +19,8 @@ spec:
       parameters:
         - name: controllerManager.manager.image.tag
           value: {{ .Values.applicationRepositoryOperator.image.tag | quote }}
+        - name: reconcile.requeueInterval
+          value: {{ .Values.applicationRepositoryOperator.requeueInterval | quote }}
   destination:
     server: {{ .Values.destinationServer | quote }}
     namespace: default
