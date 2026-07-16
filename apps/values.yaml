@@ -39,7 +39,6 @@ operator:
 applicationRepositoryOperator:
   repoURL: "https://github.com/entr0pian/application-repository-operator.git"
   targetRevision: main
-repositories: {frontend-test: {repoURL: 'https://github.com/entr0pian/frontend.git', targetRevision: main, chartPath: chart}}
 notifications:
   slack:
     channel: deployments
