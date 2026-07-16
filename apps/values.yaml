@@ -42,3 +42,8 @@ applicationRepositoryOperator:
 notifications:
   slack:
     channel: deployments
+repositories:
+  frontend-test:
+    repoURL: https://github.com/entr0pian/frontend.git
+    targetRevision: main
+    chartPath: chart
