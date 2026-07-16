@@ -1,30 +1,21 @@
 repoURL: "https://github.com/entr0pian/helm-charts.git"
 targetRevision: main
-
 destinationServer: "https://kubernetes.default.svc"
-
 kubePrometheusStack:
   enabled: true
-
 externalSecrets:
   enabled: true
-
 keda:
   enabled: true
-
 crossplane:
   enabled: true
   secretPath: ""
-
 argocdWriteToken:
   secretPath: ""
-
 crossplaneProviderConfig:
   enabled: true
-
 crossplaneCompositions:
   enabled: true
-
 platform:
   enabled: true
   limitRange:
@@ -33,29 +24,22 @@ platform:
     enabled: true
   grafanaDashboard:
     enabled: true
-
 atlasOperator:
   enabled: true
-
 backend:
   repoURL: "https://github.com/entr0pian/backend.git"
   targetRevision: main
-
 frontend:
   repoURL: "https://github.com/entr0pian/frontend.git"
   targetRevision: main
-
 operator:
   enabled: true
   repoURL: "https://github.com/entr0pian/backend-operator.git"
   targetRevision: main
-
 applicationRepositoryOperator:
   repoURL: "https://github.com/entr0pian/application-repository-operator.git"
   targetRevision: main
-
-repositories: {}
-
+repositories: {frontend-test: {repoURL: 'https://github.com/entr0pian/frontend.git', targetRevision: main, chartPath: chart}}
 notifications:
   slack:
     channel: deployments
