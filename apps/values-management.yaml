@@ -8,6 +8,8 @@ argocdWriteToken:
 
 applicationRepositoryOperator:
   enabled: true
+  image:
+    tag: latest
 
 kubePrometheusStack:
   enabled: false

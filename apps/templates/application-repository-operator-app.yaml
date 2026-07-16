@@ -16,6 +16,9 @@ spec:
     path: chart
     helm:
       releaseName: application-repository-operator
+      parameters:
+        - name: controllerManager.manager.image.tag
+          value: {{ .Values.applicationRepositoryOperator.image.tag | quote }}
   destination:
     server: {{ .Values.destinationServer | quote }}
     namespace: default
