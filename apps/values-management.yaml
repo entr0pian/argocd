@@ -6,7 +6,7 @@ argocdWriteToken:
 applicationRepositoryOperator:
   enabled: true
   image:
-    tag: 2288bdb8283c1ed8ad6587a297fcbc54c6383dd4
+    tag: 1cfd72a1993d3d9c7fad002a70dd94628c85d26a
 kubePrometheusStack:
   enabled: false
 keda:
