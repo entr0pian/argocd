@@ -28,3 +28,7 @@ platform:
     enabled: false
   grafanaDashboard:
     enabled: false
+repositories:
+  frontend-test:
+    enabled: true
+    namespace: default
