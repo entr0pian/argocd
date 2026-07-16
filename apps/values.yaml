@@ -54,6 +54,8 @@ applicationRepositoryOperator:
   repoURL: "https://github.com/entr0pian/application-repository-operator.git"
   targetRevision: main
 
+repositories: {}
+
 notifications:
   slack:
     channel: deployments
