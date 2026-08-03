@@ -31,5 +31,5 @@ platform:
     enabled: false
 repositories:
   frontend-test:
-    enabled: true
+    enabled: false
     namespace: default
