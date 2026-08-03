@@ -18,3 +18,6 @@ repositories:
   frontend-test:
     enabled: false
     namespace: default
+  backend:
+    enabled: true
+    namespace: default
