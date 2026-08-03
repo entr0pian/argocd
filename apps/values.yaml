@@ -40,6 +40,9 @@ applicationRepositoryOperator:
   repoURL: "https://github.com/entr0pian/application-repository-operator.git"
   targetRevision: main
   requeueInterval: ""
+applicationRepositories:
+  repoURL: "https://github.com/entr0pian/application-repositories.git"
+  targetRevision: main
 notifications:
   slack:
     channel: deployments
