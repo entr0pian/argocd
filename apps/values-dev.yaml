@@ -16,5 +16,5 @@ frontend:
     tag: 49b19a6ba7740391c78a65ff2977ac6a341930a6
 repositories:
   frontend-test:
-    enabled: true
+    enabled: false
     namespace: default
