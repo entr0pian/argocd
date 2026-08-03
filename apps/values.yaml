@@ -51,3 +51,7 @@ repositories:
     repoURL: https://github.com/entr0pian/frontend.git
     targetRevision: main
     chartPath: chart
+  backend:
+    repoURL: https://github.com/entr0pian/backend.git
+    targetRevision: main
+    chartPath: chart
