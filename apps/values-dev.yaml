@@ -10,3 +10,4 @@ repositories:
   backend:
     enabled: true
     namespace: default
+    imageTag: c3f5e94f23e798b460d8c9811a7fd0976913cc45
