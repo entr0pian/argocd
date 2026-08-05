@@ -6,7 +6,7 @@ argocdWriteToken:
 applicationRepositoryOperator:
   enabled: true
   image:
-    tag: 2560bd73cfed12687bb48e502ab7f8f277a9384c
+    tag: baad13e01d49c13d4840e196bd035ce6c5bb86d0
   requeueInterval: "30s"
 applicationRepositories:
   enabled: true
