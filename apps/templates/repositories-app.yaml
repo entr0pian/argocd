@@ -20,6 +20,11 @@ spec:
     path: {{ $repo.chartPath | quote }}
     helm:
       releaseName: {{ $name }}
+      {{- if $repo.imageTag }}
+      parameters:
+        - name: image.tag
+          value: {{ $repo.imageTag | quote }}
+      {{- end }}
   destination:
     server: {{ $.Values.destinationServer | quote }}
     namespace: {{ $repo.namespace | quote }}
