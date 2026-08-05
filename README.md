@@ -2,7 +2,7 @@
 
 GitOps configuration for deploying the taskapp stack to Kubernetes using ArgoCD. Implements the [App-of-Apps](https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-bootstrapping/) pattern with a centralized ArgoCD instance on a dedicated management cluster managing both dev and prod.
 
-`backend`, `frontend`, `backend-operator`, and `application-repository-operator` each own their deployment chart in their own repo (`path: chart`). Shared/infra charts (`platform`, `crossplane-provider-config`, `crossplane-compositions`) live in the companion repo: [`taskapp-helmcharts`](https://github.com/entr0pian/helm-charts). Everything else (`kube-prometheus-stack`, `external-secrets`, `keda`, `crossplane`, `atlas-operator`) is a third-party Helm chart pulled directly from its upstream repo.
+`backend-operator` and `application-repository-operator` each own their deployment chart in their own repo (`path: chart`), sourced by their own dedicated Application template. `backend` and `frontend` also own their chart in their own repo, but are onboarded through the generic CR-driven mechanism instead: an `ApplicationRepository` CR in [`application-repositories`](https://github.com/entr0pian/application-repositories) is reconciled by `application-repository-operator`, which writes `repositories.<name>.*` into this repo's `apps/values*.yaml` — `repositories-app.yaml` then renders one Application per entry. Shared/infra charts (`platform`, `crossplane-provider-config`, `crossplane-compositions`) live in the companion repo: [`taskapp-helmcharts`](https://github.com/entr0pian/helm-charts). Everything else (`kube-prometheus-stack`, `external-secrets`, `keda`, `crossplane`, `atlas-operator`) is a third-party Helm chart pulled directly from its upstream repo.
 
 ## Repository Structure
 
@@ -18,7 +18,6 @@ argocd/
     ├── values-prod.yaml         # Prod environment overrides
     ├── values-management.yaml  # Management environment overrides (minimal footprint - no workloads)
     └── templates/
-        ├── _helpers.tpl                              # shared `ignoreDifferences` block for autoscaled apps
         ├── kube-prometheus-stack-app.yaml             # Prometheus, Grafana, AlertManager (wave 0)
         ├── external-secrets-app.yaml                  # External Secrets Operator (wave 0)
         ├── keda-app.yaml                               # KEDA autoscaler (wave 0)
@@ -29,8 +28,8 @@ argocd/
         ├── atlas-operator-app.yaml                     # Atlas schema-migration operator (wave 1)
         ├── crossplane-provider-config-app.yaml         # Crossplane ProviderConfig (wave 2)
         ├── crossplane-compositions-app.yaml            # Crossplane Compositions (wave 3)
-        ├── backend-app.yaml                            # Go REST API (wave 4)
-        └── frontend-app.yaml                           # React SPA (wave 4)
+        ├── application-repositories-app.yaml           # Syncs ApplicationRepository CRs into the cluster; management only (wave 2)
+        └── repositories-app.yaml                       # One Application per repositories.<name> entry, CR-driven (wave 5)
 ```
 
 There is no `database-app.yaml` — the backend operator provisions RDS itself via Crossplane.
@@ -48,11 +47,11 @@ There is no `database-app.yaml` — the backend operator provisions RDS itself v
 | `application-repository-operator` | `default` | 1 | operator's own repo (`application-repository-operator.git`), `path: chart`; management only | sync succeeded/failed |
 | `atlas-operator` | `atlas-operator` | 1 | ghcr.io/ariga/charts v0.7.36 | sync succeeded/failed |
 | `crossplane-provider-config` | `crossplane-system` | 2 | `helm-charts/crossplane-provider-config` | sync succeeded/failed |
+| `application-repositories` | `default` | 2 | `application-repositories.git` (directory source); management only | sync succeeded/failed |
 | `crossplane-compositions` | `crossplane-system` | 3 | `helm-charts/crossplane-compositions` | sync succeeded/failed |
-| `taskapp-backend` | `default` | 4 | backend's own repo (`backend.git`), `path: chart` | sync succeeded/failed, smoke-test failed |
-| `taskapp-frontend` | `default` | 4 | frontend's own repo (`frontend.git`), `path: chart` | sync succeeded/failed |
+| `<name>-<env>` (one per `repositories.<name>`, e.g. `backend-dev`) | per-entry | 5 | onboarded repo's own chart, CR-driven | — |
 
-Wave 0 installs cluster infrastructure (monitoring, secrets, autoscaling, Crossplane core). Wave 1 applies cluster-wide resources and the operators that depend on them. Waves 2–3 configure Crossplane provider auth and compositions. Wave 4 deploys the application components once their infrastructure dependencies exist.
+Wave 0 installs cluster infrastructure (monitoring, secrets, autoscaling, Crossplane core). Wave 1 applies cluster-wide resources and the operators that depend on them. Wave 2 configures Crossplane provider auth and syncs any `ApplicationRepository` CRs (management only). Wave 3 applies Crossplane compositions. Wave 5 deploys CR-onboarded application components (`repositories-app.yaml`) once every earlier wave's infrastructure exists — see [`application-repositories`](https://github.com/entr0pian/application-repositories) for how `backend`/`frontend` get onboarded here instead of a per-app template.
 
 All apps use `automated` sync with `selfHeal: true` and `prune: true`. `kube-prometheus-stack`, `keda`, `crossplane`, and `atlas-operator` use `ServerSideApply=true` to avoid annotation size limits on CRDs.
 
@@ -61,8 +60,8 @@ All apps use `automated` sync with `selfHeal: true` and `prune: true`. `kube-pro
 Every Application template is wrapped in `{{- if .Values.<app>.enabled }}`. Whether an app renders is controlled per environment:
 
 - **Platform-utility apps** (`kubePrometheusStack`, `externalSecrets`, `keda`, `crossplane`, `crossplaneProviderConfig`, `crossplaneCompositions`, `platform`, `atlasOperator`, `operator`) default to `enabled: true` in the base `apps/values.yaml`. They render in every environment unless an env file explicitly overrides that key to `false` — `values-management.yaml` does this for all of them except `externalSecrets` and `platform`, since the management cluster runs no application workloads.
-- **`backend` and `frontend`** have no default in `apps/values.yaml` — they're optional per environment and must be explicitly set with `enabled: true` in `values-dev.yaml` / `values-prod.yaml` to render at all. Both currently do.
 - **`applicationRepositoryOperator`** has no default either — it's only set `enabled: true` in `values-management.yaml`, since this operator runs centrally in the management cluster, not per dev/prod.
+- **`backend` and `frontend`** are not top-level keys at all — they're onboarded per environment via `repositories.<name>`, driven by an `ApplicationRepository` CR in [`application-repositories`](https://github.com/entr0pian/application-repositories) rather than a `.Values.<app>.enabled` flag. See that repo's README for the CR shape.
 
 Helm/ArgoCD deep-merges `values.yaml` with the env's `valueFiles` entry, so an env file only needs to specify the keys it's overriding — e.g. to turn an app off in prod without touching dev:
 
@@ -98,7 +97,7 @@ ArgoCD creates all child applications automatically and syncs them in wave order
 
 Deployment events are sent to the `#deployments` Slack channel via ArgoCD Notifications. Subscribed events per app:
 
-- `on-sync-succeeded` / `on-sync-failed` — `taskapp-platform`, `taskapp-backend-operator`, `application-repository-operator`, `atlas-operator`, `crossplane-provider-config`, `crossplane-compositions`, `taskapp-backend`, `taskapp-frontend`
-- `on-smoke-test-failed` — `taskapp-backend` only (PostSync smoke-test job)
+- `on-sync-succeeded` / `on-sync-failed` — `taskapp-platform`, `taskapp-backend-operator`, `application-repository-operator`, `atlas-operator`, `crossplane-provider-config`, `crossplane-compositions`, `application-repositories`
+- CR-driven apps rendered by `repositories-app.yaml` (e.g. `backend-dev`) are not currently subscribed to any notification.
 
 `kube-prometheus-stack`, `external-secrets`, `keda`, and `crossplane` are not subscribed to notifications.

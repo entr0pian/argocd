@@ -26,12 +26,6 @@ platform:
     enabled: true
 atlasOperator:
   enabled: true
-backend:
-  repoURL: "https://github.com/entr0pian/backend.git"
-  targetRevision: main
-frontend:
-  repoURL: "https://github.com/entr0pian/frontend.git"
-  targetRevision: main
 operator:
   enabled: true
   repoURL: "https://github.com/entr0pian/backend-operator.git"
@@ -47,10 +41,6 @@ notifications:
   slack:
     channel: deployments
 repositories:
-  frontend-test:
-    repoURL: https://github.com/entr0pian/frontend.git
-    targetRevision: main
-    chartPath: chart
   backend:
     repoURL: https://github.com/entr0pian/backend.git
     targetRevision: main
