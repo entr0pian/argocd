@@ -2,7 +2,7 @@ env: dev
 destinationServer: "https://172.19.0.2:6443"
 crossplane:
   enabled: false
-  secretPath: taskapp/dev/crossplane-aws
+  secretPath: ""
 crossplaneProviderConfig:
   enabled: false
 operator:
