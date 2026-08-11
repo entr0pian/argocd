@@ -3,6 +3,8 @@ externalSecrets:
   enabled: true
 argocdWriteToken:
   secretPath: taskapp/platform/argocd-write-token
+crossplaneGithub:
+  secretPath: taskapp/platform/crossplane-github-token
 applicationRepositoryOperator:
   enabled: true
   image:
@@ -17,7 +19,13 @@ keda:
 crossplane:
   enabled: false
 crossplaneProviderConfig:
-  enabled: false
+  enabled: true
+  kubernetes:
+    enabled: false
+  aws:
+    enabled: false
+  github:
+    enabled: true
 crossplaneCompositions:
   enabled: false
 atlasOperator:

@@ -16,6 +16,13 @@ spec:
     path: crossplane-provider-config
     helm:
       releaseName: crossplane-provider-config
+      values: |
+        kubernetes:
+          enabled: {{ .Values.crossplaneProviderConfig.kubernetes.enabled }}
+        aws:
+          enabled: {{ .Values.crossplaneProviderConfig.aws.enabled }}
+        github:
+          enabled: {{ .Values.crossplaneProviderConfig.github.enabled }}
   destination:
     server: {{ .Values.destinationServer | quote }}
     namespace: crossplane-system

@@ -1,7 +1,10 @@
 env: prod
 destinationServer: "https://172.19.0.4:6443"
 crossplane:
+  enabled: false
   secretPath: taskapp/prod/crossplane-aws
+crossplaneProviderConfig:
+  enabled: false
 operator:
   image:
     tag: "112108c11c371eb6a36c4cea1b1951624a874e40"

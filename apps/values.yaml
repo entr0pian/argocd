@@ -12,8 +12,16 @@ crossplane:
   secretPath: ""
 argocdWriteToken:
   secretPath: ""
+crossplaneGithub:
+  secretPath: ""
 crossplaneProviderConfig:
   enabled: true
+  kubernetes:
+    enabled: true
+  aws:
+    enabled: true
+  github:
+    enabled: false
 crossplaneCompositions:
   enabled: false
 platform:
