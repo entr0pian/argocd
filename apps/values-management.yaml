@@ -17,7 +17,7 @@ kubePrometheusStack:
 keda:
   enabled: false
 crossplane:
-  enabled: false
+  enabled: true
 crossplaneProviderConfig:
   enabled: true
   kubernetes:
