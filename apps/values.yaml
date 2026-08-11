@@ -15,7 +15,7 @@ argocdWriteToken:
 crossplaneProviderConfig:
   enabled: true
 crossplaneCompositions:
-  enabled: true
+  enabled: false
 platform:
   enabled: true
   limitRange:
@@ -27,7 +27,7 @@ platform:
 atlasOperator:
   enabled: true
 operator:
-  enabled: true
+  enabled: false
   repoURL: "https://github.com/entr0pian/backend-operator.git"
   targetRevision: main
 applicationRepositoryOperator:

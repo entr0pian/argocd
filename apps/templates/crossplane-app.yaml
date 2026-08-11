@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: "https://charts.crossplane.io/stable"
     chart: crossplane
-    targetRevision: "1.19.1"
+    targetRevision: "2.3.4"
     helm:
       releaseName: crossplane
   destination:

@@ -8,6 +8,6 @@ operator:
   credentialsSecretPath: taskapp/dev/backend-credentials
 repositories:
   backend:
-    enabled: true
+    enabled: false
     namespace: default
     imageTag: f84c7a80d3ac917285f7184a42e313fd357f8ee9
