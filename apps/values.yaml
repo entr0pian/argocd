@@ -24,6 +24,9 @@ crossplaneProviderConfig:
     enabled: false
 crossplaneCompositions:
   enabled: false
+crossplaneCompositionsPackage:
+  repoURL: "https://github.com/entr0pian/crossplane-compositions.git"
+  targetRevision: main
 platform:
   enabled: true
   limitRange:

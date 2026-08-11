@@ -28,6 +28,8 @@ crossplaneProviderConfig:
     enabled: true
 crossplaneCompositions:
   enabled: false
+crossplaneCompositionsPackage:
+  enabled: true
 atlasOperator:
   enabled: false
 operator:
