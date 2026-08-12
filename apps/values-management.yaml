@@ -1,36 +1,7 @@
 env: management
-externalSecrets:
-  enabled: true
-argocdWriteToken:
-  secretPath: taskapp/platform/argocd-write-token
-crossplaneGithub:
-  secretPath: taskapp/platform/crossplane-github-token
 catalog:
   enabled: true
-kubePrometheusStack:
-  enabled: false
-keda:
-  enabled: false
-crossplane:
+infra:
   enabled: true
-crossplaneProviderConfig:
-  enabled: true
-  kubernetes:
-    enabled: false
-  aws:
-    enabled: false
-  github:
-    enabled: true
 crossplaneCompositionsPackage:
   enabled: true
-atlasOperator:
-  enabled: false
-operator:
-  enabled: false
-platform:
-  limitRange:
-    enabled: false
-  prometheusRules:
-    enabled: false
-  grafanaDashboard:
-    enabled: false

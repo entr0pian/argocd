@@ -1,8 +1,8 @@
-{{- if .Values.catalog.enabled }}
+{{- if .Values.infra.enabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: taskapp-catalog
+  name: taskapp-infra
   namespace: argocd
 spec:
   goTemplate: true
@@ -14,7 +14,7 @@ spec:
               repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
               revision: {{ .Values.applicationRepositories.targetRevision | quote }}
               files:
-                - path: "catalog/*/*.yaml"
+                - path: "infra/*/*.yaml"
           - clusters:
               selector:
                 matchLabels:
@@ -24,7 +24,9 @@ spec:
       name: "{{`{{.path.basename}}`}}-{{`{{ trimSuffix \".yaml\" .path.filename }}`}}"
       namespace: argocd
       annotations:
-        argocd.argoproj.io/sync-wave: "5"
+        argocd.argoproj.io/sync-wave: "{{`{{.wave}}`}}"
+        notifications.argoproj.io/subscribe.on-sync-succeeded.slack: "{{`{{ if .notify }}`}}{{ .Values.notifications.slack.channel }}{{`{{ end }}`}}"
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: "{{`{{ if .notify }}`}}{{ .Values.notifications.slack.channel }}{{`{{ end }}`}}"
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
@@ -32,6 +34,7 @@ spec:
       source:
         repoURL: "{{`{{.repoURL}}`}}"
         targetRevision: "{{`{{.targetRevision}}`}}"
+        chart: "{{`{{.chart}}`}}"
         path: "{{`{{.chartPath}}`}}"
         helm:
           releaseName: "{{`{{.path.basename}}`}}"
@@ -43,4 +46,7 @@ spec:
         automated:
           prune: true
           selfHeal: true
+        syncOptions:
+          - "CreateNamespace={{`{{.createNamespace}}`}}"
+          - "ServerSideApply={{`{{.serverSideApply}}`}}"
 {{- end }}

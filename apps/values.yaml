@@ -1,49 +1,13 @@
-repoURL: "https://github.com/entr0pian/helm-charts.git"
-targetRevision: main
-destinationServer: "https://kubernetes.default.svc"
-kubePrometheusStack:
-  enabled: true
-externalSecrets:
-  enabled: true
-keda:
-  enabled: true
-crossplane:
-  enabled: true
-  secretPath: ""
-argocdWriteToken:
-  secretPath: ""
-crossplaneGithub:
-  secretPath: ""
-crossplaneProviderConfig:
-  enabled: true
-  kubernetes:
-    enabled: true
-  aws:
-    enabled: true
-  github:
-    enabled: false
-crossplaneCompositionsPackage:
-  repoURL: "https://github.com/entr0pian/crossplane-compositions.git"
-  targetRevision: main
-platform:
-  enabled: true
-  limitRange:
-    enabled: true
-  prometheusRules:
-    enabled: true
-  grafanaDashboard:
-    enabled: true
-atlasOperator:
-  enabled: true
-operator:
-  enabled: false
-  repoURL: "https://github.com/entr0pian/backend-operator.git"
-  targetRevision: main
 applicationRepositories:
   repoURL: "https://github.com/entr0pian/application-repositories.git"
   targetRevision: main
 catalog:
   enabled: false
+infra:
+  enabled: false
+crossplaneCompositionsPackage:
+  repoURL: "https://github.com/entr0pian/crossplane-compositions.git"
+  targetRevision: main
 notifications:
   slack:
     channel: deployments
