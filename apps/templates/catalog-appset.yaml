@@ -10,11 +10,21 @@ spec:
   generators:
     - matrix:
         generators:
-          - git:
-              repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
-              revision: {{ .Values.applicationRepositories.targetRevision | quote }}
-              files:
-                - path: "catalog/*/*.yaml"
+          - merge:
+              mergeKeys:
+                - path.basename
+                - path.filename
+              generators:
+                - git:
+                    repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
+                    revision: {{ .Values.applicationRepositories.targetRevision | quote }}
+                    files:
+                      - path: "catalog/*/*.yaml"
+                - git:
+                    repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
+                    revision: {{ .Values.applicationRepositories.targetRevision | quote }}
+                    files:
+                      - path: "values/*/*.yaml"
           - clusters:
               selector:
                 matchLabels:

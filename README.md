@@ -6,7 +6,7 @@ This chart's own job has shrunk to almost nothing: it bootstraps **two Applicati
 
 - **`taskapp-catalog`** reads `catalog/<service>/<env>.yaml` — one file per onboarded service per environment (`backend`, `frontend`, ...).
 - **`taskapp-infra`** reads `infra/<component>/<env>.yaml` — one file per cluster-infrastructure component per environment (`kube-prometheus-stack`, `platform`, `crossplane`, ...).
-- Both are structurally identical: one file holds everything, including Helm overrides — no separate values tree. Both resolve their target cluster from ArgoCD's own registered clusters via an `environment`-label match. No CR, no operator, no write-back commit into this repo, ever.
+- Both merge their identity file against a paired `values/<name>/<env>.yaml` — identity (repo, chart path, namespace) and parameters (image tags, toggles) are separate concerns, kept in separate files on purpose. Both resolve their target cluster from ArgoCD's own registered clusters via an `environment`-label match. No CR, no operator, no write-back commit into this repo, ever.
 - **`crossplane-compositions-package`** is the one exception, still a hand-written Application template — it's a raw `directory` source (an OCI `Configuration` CR), structurally incompatible with the two ApplicationSets' shared Helm-chart-shaped template (`source.helm` and `source.directory` don't cleanly disappear when "unused" the way scalar fields do — confirmed empirically, not assumed).
 
 ## Repository Structure
@@ -28,28 +28,30 @@ There used to be a `root-dev.yaml`/`root-prod.yaml` pair too, rendering this sam
 
 ## How the two ApplicationSets work
 
-Both are the same shape — a `matrix` of one `git` generator and a `clusters` generator:
+Both are the same shape — a `matrix` of (a `merge` of two `git` generators) and a `clusters` generator:
 
 ```
 matrix:
-  - git: files: ["catalog/*/*.yaml"]   # or "infra/*/*.yaml"
+  - merge(mergeKeys: [path.basename, path.filename]):
+      - git: files: ["catalog/*/*.yaml"]   # or "infra/*/*.yaml"
+      - git: files: ["values/*/*.yaml"]
   - clusters:
       selector.matchLabels.environment: "{{ trimSuffix \".yaml\" .path.filename }}"
 ```
 
-The `git` generator produces one item per matched file; the `matrix` joins each against whichever registered ArgoCD cluster carries a matching `environment` label, resolving `destination.server` live — never hardcoded anywhere in either repo.
+The `merge` left-joins each identity file (e.g. `catalog/backend/dev.yaml`) with its optional counterpart (`values/backend/dev.yaml`) by matching directory+filename — a values file is never required, since every identity file carries a `values: ""` default the paired file can override. The outer `matrix` then joins the result against whichever registered ArgoCD cluster carries a matching `environment` label, resolving `destination.server` live — never hardcoded anywhere in either repo.
 
-**No separate values file, for either.** A `catalog/`+`values/` split (governed separately, so a CI bot's write access could be scoped away from `repoURL`/`chartPath`) was tried and reverted — the boundary only earns its keep once something actually writes to it at high frequency, and nothing does yet: the old write-back path was retired along with `repositories-app.yaml`, and CI hasn't been repointed to write anywhere new (see the CI item below). Building the split ahead of that writer existing was speculative structure with no real benefit yet. Re-introduce it — for `catalog/` specifically, or for any one `infra/` component — exactly when something starts writing there on every push, not before.
+**Why identity and values are separate files, for both:** `catalog/`/`infra/` hold onboarding-time facts (repo, chart path, namespace) that rarely change; `values/` holds what actually changes on every deploy (image tags, toggles). Keeping them apart is a deliberate separation of concerns — it means a CI bot's write access can eventually be scoped to `values/` alone, physically unable to touch where a chart lives, even before that CI wiring exists.
 
-**Why `source.helm.values` (a raw string) and not `source.helm.parameters` (a list) for overrides:** ApplicationSet's own template is a fixed-shape object, not a Helm-style whole-file text template — `{{ range }}`/`{{ if }}` can compute what a *string field's value* is, but can't add or remove array entries or YAML keys. A single `values: "{{.values}}"` string field sidesteps this entirely: the file just holds a raw, already-shaped YAML block. The same constraint is why `infra-appset.yaml` always has both `chart` and `path` fields present (empty string on whichever side is unused — ArgoCD omits an empty scalar field from the rendered Application) rather than trying to branch between them structurally, and why `syncOptions` is a fixed two-slot array (`CreateNamespace={{.createNamespace}}`, `ServerSideApply={{.serverSideApply}}`) instead of a variable-length list — an explicit `=false` is a no-op, same as the option being absent. This same reasoning is why `crossplane-compositions-package` can't just join `infra/` as another entry — `source.helm` and `source.directory` are both structs, and unlike scalar fields, an "unused" struct doesn't cleanly vanish from the rendered Application.
+**Why `source.helm.values` (a raw string) and not `source.helm.parameters` (a list) for overrides:** ApplicationSet's own template is a fixed-shape object, not a Helm-style whole-file text template — `{{ range }}`/`{{ if }}` can compute what a *string field's value* is, but can't add or remove array entries or YAML keys. A single `values: "{{.values}}"` string field sidesteps this entirely: the values file just holds a raw, already-shaped YAML block, passed through verbatim. The same constraint is why `infra-appset.yaml` always has both `chart` and `path` fields present (empty string on whichever side is unused — ArgoCD omits an empty scalar field from the rendered Application) rather than trying to branch between them structurally, and why `syncOptions` is a fixed two-slot array (`CreateNamespace={{.createNamespace}}`, `ServerSideApply={{.serverSideApply}}`) instead of a variable-length list — an explicit `=false` is a no-op, same as the option being absent. This same reasoning is why `crossplane-compositions-package` can't just join `infra/` as another entry — `source.helm` and `source.directory` are both structs, and unlike scalar fields, an "unused" struct doesn't cleanly vanish from the rendered Application.
 
 There is no `database-app.yaml` — the backend operator (when enabled) provisions RDS itself via Crossplane.
 
 ## Onboarding
 
-**A new service:** add `application-repositories/catalog/<service>/<env>.yaml` — one file. Nothing in this repo changes.
+**A new service:** add `application-repositories/catalog/<service>/<env>.yaml`, plus `values/<service>/<env>.yaml` if it needs anything beyond the chart's own defaults. Nothing in this repo changes.
 
-**A new piece of infrastructure:** add `application-repositories/infra/<component>/<env>.yaml` — one file, no pairing needed. See that repo's README for the exact shape.
+**A new piece of infrastructure:** add `application-repositories/infra/<component>/<env>.yaml` the same way. See that repo's README for the exact shape.
 
 ## Environments
 
