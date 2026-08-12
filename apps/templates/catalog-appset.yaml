@@ -12,8 +12,7 @@ spec:
         generators:
           - merge:
               mergeKeys:
-                - path.basename
-                - path.filename
+                - name
               generators:
                 - git:
                     repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
@@ -31,7 +30,7 @@ spec:
                   environment: "{{`{{ trimSuffix \".yaml\" .path.filename }}`}}"
   template:
     metadata:
-      name: "{{`{{.path.basename}}`}}-{{`{{ trimSuffix \".yaml\" .path.filename }}`}}"
+      name: "{{`{{.name}}`}}"
       namespace: argocd
       annotations:
         argocd.argoproj.io/sync-wave: "5"
