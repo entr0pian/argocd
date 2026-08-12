@@ -5,12 +5,7 @@ argocdWriteToken:
   secretPath: taskapp/platform/argocd-write-token
 crossplaneGithub:
   secretPath: taskapp/platform/crossplane-github-token
-applicationRepositoryOperator:
-  enabled: true
-  image:
-    tag: 9dde076fc6df9750ae8f6560c4e2c03725b15cc5
-  requeueInterval: "30s"
-applicationRepositories:
+catalog:
   enabled: true
 kubePrometheusStack:
   enabled: false
@@ -26,8 +21,6 @@ crossplaneProviderConfig:
     enabled: false
   github:
     enabled: true
-crossplaneCompositions:
-  enabled: false
 crossplaneCompositionsPackage:
   enabled: true
 atlasOperator:

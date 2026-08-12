@@ -2,7 +2,7 @@
 
 GitOps configuration for deploying the taskapp stack to Kubernetes using ArgoCD. Implements the [App-of-Apps](https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-bootstrapping/) pattern with a centralized ArgoCD instance on a dedicated management cluster managing both dev and prod.
 
-`backend-operator` and `application-repository-operator` each own their deployment chart in their own repo (`path: chart`), sourced by their own dedicated Application template. `backend` and `frontend` also own their chart in their own repo, but are onboarded through the generic CR-driven mechanism instead: an `ApplicationRepository` CR in [`application-repositories`](https://github.com/entr0pian/application-repositories) is reconciled by `application-repository-operator`, which writes `repositories.<name>.*` into this repo's `apps/values*.yaml` — `repositories-app.yaml` then renders one Application per entry. Shared/infra charts (`platform`, `crossplane-provider-config`, `crossplane-compositions`) live in the companion repo: [`taskapp-helmcharts`](https://github.com/entr0pian/helm-charts). Everything else (`kube-prometheus-stack`, `external-secrets`, `keda`, `crossplane`, `atlas-operator`) is a third-party Helm chart pulled directly from its upstream repo.
+`backend-operator` owns its deployment chart in its own repo (`path: chart`), sourced by its own dedicated Application template. `backend` and `frontend` also own their chart in their own repo, but are onboarded through a `taskapp-catalog` `ApplicationSet` instead: it reads `catalog/<service>/<env>.yaml` files directly from [`application-repositories`](https://github.com/entr0pian/application-repositories) (a `git` generator) and resolves each entry's target cluster from ArgoCD's own registered clusters via an `environment`-label match (a `clusters` generator, joined with the catalog via `matrix`) — no CR, no operator, no write-back commit into this repo. Shared/infra charts (`platform`, `crossplane-provider-config`) live in the companion repo: [`taskapp-helmcharts`](https://github.com/entr0pian/helm-charts). `helm-charts/crossplane-compositions` (the old RDS/SQS compositions, built on Crossplane 1.x cluster-scoped resources) still exists in that repo but is no longer referenced from here — superseded by the OCI-packaged `crossplane-compositions-package`. Everything else (`kube-prometheus-stack`, `external-secrets`, `keda`, `crossplane`, `atlas-operator`) is a third-party Helm chart pulled directly from its upstream repo.
 
 ## Repository Structure
 
@@ -24,12 +24,10 @@ argocd/
         ├── crossplane-app.yaml                        # Crossplane core (wave 0)
         ├── platform-app.yaml                          # Cluster-wide resources: LimitRange, PrometheusRules, Grafana dashboard, ClusterSecretStore (wave 1)
         ├── backend-operator-app.yaml                   # Backend operator; provisions RDS/SQS via Crossplane (wave 1)
-        ├── application-repository-operator-app.yaml    # ApplicationRepository onboarding operator; management only (wave 1)
         ├── atlas-operator-app.yaml                     # Atlas schema-migration operator (wave 1)
         ├── crossplane-provider-config-app.yaml         # Crossplane ProviderConfig (wave 2)
-        ├── crossplane-compositions-app.yaml            # Crossplane Compositions (wave 3)
-        ├── application-repositories-app.yaml           # Syncs ApplicationRepository CRs into the cluster; management only (wave 2)
-        └── repositories-app.yaml                       # One Application per repositories.<name> entry, CR-driven (wave 5)
+        ├── crossplane-compositions-package-app.yaml    # Crossplane Configuration package (OCI); management only (wave 1)
+        └── catalog-appset.yaml                         # taskapp-catalog ApplicationSet: one Application per catalog/<service>/<env>.yaml; management only (wave 5)
 ```
 
 There is no `database-app.yaml` — the backend operator provisions RDS itself via Crossplane.
@@ -41,17 +39,15 @@ There is no `database-app.yaml` — the backend operator provisions RDS itself v
 | `kube-prometheus-stack` | `monitoring` | 0 | prometheus-community Helm chart v84.4.0 | — |
 | `external-secrets` | `external-secrets` | 0 | external-secrets Helm chart v0.14.4 | — |
 | `keda` | `keda` | 0 | kedacore Helm chart v2.16.1 | — |
-| `crossplane` | `crossplane-system` | 0 | charts.crossplane.io Helm chart v1.19.1 | — |
+| `crossplane` | `crossplane-system` | 0 | charts.crossplane.io Helm chart | — |
 | `taskapp-platform` | `default` | 1 | `helm-charts/platform` | sync succeeded/failed |
 | `taskapp-backend-operator` | `default` | 1 | operator's own repo (`backend-operator.git`), `path: chart` | sync succeeded/failed |
-| `application-repository-operator` | `default` | 1 | operator's own repo (`application-repository-operator.git`), `path: chart`; management only | sync succeeded/failed |
 | `atlas-operator` | `atlas-operator` | 1 | ghcr.io/ariga/charts v0.7.36 | sync succeeded/failed |
 | `crossplane-provider-config` | `crossplane-system` | 2 | `helm-charts/crossplane-provider-config` | sync succeeded/failed |
-| `application-repositories` | `default` | 2 | `application-repositories.git` (directory source); management only | sync succeeded/failed |
-| `crossplane-compositions` | `crossplane-system` | 3 | `helm-charts/crossplane-compositions` | sync succeeded/failed |
-| `<name>-<env>` (one per `repositories.<name>`, e.g. `backend-dev`) | per-entry | 5 | onboarded repo's own chart, CR-driven | — |
+| `crossplane-compositions-package` | `crossplane-system` | 1 | `crossplane-compositions.git` (directory source, OCI `Configuration` CR); management only | sync succeeded/failed |
+| `<service>-<env>` (one per `catalog/<service>/<env>.yaml`, e.g. `backend-dev`) | per-entry | 5 | onboarded repo's own chart, `taskapp-catalog` ApplicationSet | — |
 
-Wave 0 installs cluster infrastructure (monitoring, secrets, autoscaling, Crossplane core). Wave 1 applies cluster-wide resources and the operators that depend on them. Wave 2 configures Crossplane provider auth and syncs any `ApplicationRepository` CRs (management only). Wave 3 applies Crossplane compositions. Wave 5 deploys CR-onboarded application components (`repositories-app.yaml`) once every earlier wave's infrastructure exists — see [`application-repositories`](https://github.com/entr0pian/application-repositories) for how `backend`/`frontend` get onboarded here instead of a per-app template.
+Wave 0 installs cluster infrastructure (monitoring, secrets, autoscaling, Crossplane core). Wave 1 applies cluster-wide resources, the operators that depend on them, and the Crossplane Configuration package. Wave 2 configures Crossplane provider auth. Wave 5 deploys catalog-onboarded application components (`catalog-appset.yaml`) once every earlier wave's infrastructure exists — see [`application-repositories`](https://github.com/entr0pian/application-repositories) for how `backend`/`frontend` get onboarded here instead of a per-app template.
 
 All apps use `automated` sync with `selfHeal: true` and `prune: true`. `kube-prometheus-stack`, `keda`, `crossplane`, and `atlas-operator` use `ServerSideApply=true` to avoid annotation size limits on CRDs.
 
@@ -59,9 +55,9 @@ All apps use `automated` sync with `selfHeal: true` and `prune: true`. `kube-pro
 
 Every Application template is wrapped in `{{- if .Values.<app>.enabled }}`. Whether an app renders is controlled per environment:
 
-- **Platform-utility apps** (`kubePrometheusStack`, `externalSecrets`, `keda`, `crossplane`, `crossplaneProviderConfig`, `crossplaneCompositions`, `platform`, `atlasOperator`, `operator`) default to `enabled: true` in the base `apps/values.yaml`. They render in every environment unless an env file explicitly overrides that key to `false` — `values-management.yaml` does this for all of them except `externalSecrets` and `platform`, since the management cluster runs no application workloads.
-- **`applicationRepositoryOperator`** has no default either — it's only set `enabled: true` in `values-management.yaml`, since this operator runs centrally in the management cluster, not per dev/prod.
-- **`backend` and `frontend`** are not top-level keys at all — they're onboarded per environment via `repositories.<name>`, driven by an `ApplicationRepository` CR in [`application-repositories`](https://github.com/entr0pian/application-repositories) rather than a `.Values.<app>.enabled` flag. See that repo's README for the CR shape.
+- **Platform-utility apps** (`kubePrometheusStack`, `externalSecrets`, `keda`, `crossplane`, `crossplaneProviderConfig`, `platform`, `atlasOperator`, `operator`) default to `enabled: true` in the base `apps/values.yaml`. They render in every environment unless an env file explicitly overrides that key to `false` — `values-management.yaml` does this for all of them except `externalSecrets` and `platform`, since the management cluster runs no application workloads.
+- **`catalog`** has no default either — it's only set `enabled: true` in `values-management.yaml`, since the `taskapp-catalog` ApplicationSet is a singleton that must exist exactly once, wherever ArgoCD's own ApplicationSet controller runs.
+- **`backend` and `frontend`** are not top-level keys at all — they're onboarded by adding a file to `catalog/<service>/<env>.yaml` in [`application-repositories`](https://github.com/entr0pian/application-repositories) rather than a `.Values.<app>.enabled` flag. See that repo's README for the file shape.
 
 Helm/ArgoCD deep-merges `values.yaml` with the env's `valueFiles` entry, so an env file only needs to specify the keys it's overriding — e.g. to turn an app off in prod without touching dev:
 
@@ -79,7 +75,7 @@ crossplane:
 | `prod` | `kind-prod` | `taskapp/prod/crossplane-aws`, `taskapp/prod/backend-credentials` | `root-prod.yaml` |
 | `management` | `kind-management` (where ArgoCD itself runs) | `taskapp/platform/argocd-write-token` | `root-management.yaml` |
 
-The `destinationServer` for dev/prod is the Docker internal IP of the kind cluster control plane, registered in ArgoCD during cluster bootstrap. `management` uses no override — `destinationServer` defaults to `https://kubernetes.default.svc`, deploying into wherever ArgoCD's own control plane runs, so no `argocd cluster add` registration is needed for it.
+The `destinationServer` for dev/prod is the Docker internal IP of the kind cluster control plane, registered in ArgoCD during cluster bootstrap. Cluster registration also carries an `environment: dev`/`environment: prod` label on the registered cluster Secret, which the `taskapp-catalog` ApplicationSet's `clusters` generator matches on. `management` uses no override — `destinationServer` defaults to `https://kubernetes.default.svc`, deploying into wherever ArgoCD's own control plane runs, so no separate cluster registration is needed for it.
 
 ## Bootstrap
 
@@ -97,7 +93,7 @@ ArgoCD creates all child applications automatically and syncs them in wave order
 
 Deployment events are sent to the `#deployments` Slack channel via ArgoCD Notifications. Subscribed events per app:
 
-- `on-sync-succeeded` / `on-sync-failed` — `taskapp-platform`, `taskapp-backend-operator`, `application-repository-operator`, `atlas-operator`, `crossplane-provider-config`, `crossplane-compositions`, `application-repositories`
-- CR-driven apps rendered by `repositories-app.yaml` (e.g. `backend-dev`) are not currently subscribed to any notification.
+- `on-sync-succeeded` / `on-sync-failed` — `taskapp-platform`, `taskapp-backend-operator`, `atlas-operator`, `crossplane-provider-config`, `crossplane-compositions-package`
+- Catalog-onboarded apps rendered by `catalog-appset.yaml` (e.g. `backend-dev`) are not currently subscribed to any notification.
 
 `kube-prometheus-stack`, `external-secrets`, `keda`, and `crossplane` are not subscribed to notifications.

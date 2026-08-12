@@ -9,8 +9,3 @@ operator:
   image:
     tag: ad520886b3e30842cda3b937163ccf2dd3301364
   credentialsSecretPath: taskapp/dev/backend-credentials
-repositories:
-  backend:
-    enabled: true
-    namespace: default
-    imageTag: f84c7a80d3ac917285f7184a42e313fd357f8ee9

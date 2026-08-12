@@ -22,8 +22,6 @@ crossplaneProviderConfig:
     enabled: true
   github:
     enabled: false
-crossplaneCompositions:
-  enabled: false
 crossplaneCompositionsPackage:
   repoURL: "https://github.com/entr0pian/crossplane-compositions.git"
   targetRevision: main
@@ -41,18 +39,11 @@ operator:
   enabled: false
   repoURL: "https://github.com/entr0pian/backend-operator.git"
   targetRevision: main
-applicationRepositoryOperator:
-  repoURL: "https://github.com/entr0pian/application-repository-operator.git"
-  targetRevision: main
-  requeueInterval: ""
 applicationRepositories:
   repoURL: "https://github.com/entr0pian/application-repositories.git"
   targetRevision: main
+catalog:
+  enabled: false
 notifications:
   slack:
     channel: deployments
-repositories:
-  backend:
-    repoURL: https://github.com/entr0pian/backend.git
-    targetRevision: main
-    chartPath: chart

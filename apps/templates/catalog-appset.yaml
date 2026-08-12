@@ -1,0 +1,48 @@
+{{- if .Values.catalog.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: taskapp-catalog
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
+              revision: {{ .Values.applicationRepositories.targetRevision | quote }}
+              files:
+                - path: "catalog/*/*.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  environment: "{{`{{ trimSuffix \".yaml\" .path.filename }}`}}"
+  template:
+    metadata:
+      name: "{{`{{.path.basename}}`}}-{{`{{ trimSuffix \".yaml\" .path.filename }}`}}"
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        repoURL: "{{`{{.repoURL}}`}}"
+        targetRevision: "{{`{{.targetRevision}}`}}"
+        path: "{{`{{.chartPath}}`}}"
+        helm:
+          releaseName: "{{`{{.path.basename}}`}}"
+          parameters:
+            - name: image.tag
+              value: "{{`{{.imageTag}}`}}"
+      destination:
+        server: "{{`{{.server}}`}}"
+        namespace: "{{`{{.namespace}}`}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+{{- end }}
