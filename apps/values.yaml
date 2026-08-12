@@ -47,3 +47,8 @@ catalog:
 notifications:
   slack:
     channel: deployments
+repositories:
+  backend:
+    repoURL: https://github.com/entr0pian/backend.git
+    targetRevision: main
+    chartPath: chart
