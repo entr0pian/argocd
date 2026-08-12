@@ -1,4 +1,3 @@
-{{- if .Values.catalog.enabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -15,13 +14,13 @@ spec:
                 - name
               generators:
                 - git:
-                    repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
-                    revision: {{ .Values.applicationRepositories.targetRevision | quote }}
+                    repoURL: "https://github.com/entr0pian/application-repositories.git"
+                    revision: main
                     files:
                       - path: "catalog/*/*.yaml"
                 - git:
-                    repoURL: {{ .Values.applicationRepositories.repoURL | quote }}
-                    revision: {{ .Values.applicationRepositories.targetRevision | quote }}
+                    repoURL: "https://github.com/entr0pian/application-repositories.git"
+                    revision: main
                     files:
                       - path: "values/*/*.yaml"
           - clusters:
@@ -52,4 +51,3 @@ spec:
         automated:
           prune: true
           selfHeal: true
-{{- end }}

@@ -16,15 +16,15 @@ argocd/
 ├── root-management.yaml        # Root ArgoCD Application — the only one, applied once
 └── apps/
     ├── Chart.yaml
-    ├── values.yaml                  # applicationRepositories.repoURL, notifications channel, catalog/infra enabled defaults
-    ├── values-management.yaml       # env: management, catalog/infra/crossplaneCompositionsPackage enabled: true
     └── templates/
         ├── catalog-appset.yaml              # taskapp-catalog ApplicationSet
         ├── infra-appset.yaml                # taskapp-infra ApplicationSet
         └── crossplane-compositions-package-app.yaml   # the one hand-written exception
 ```
 
-There used to be a `root-dev.yaml`/`root-prod.yaml` pair too, rendering this same chart with `values-dev.yaml`/`values-prod.yaml`. Both were removed — `.Values.env` is referenced in exactly one place in this whole chart (`crossplane-compositions-package-app.yaml`, management-only), so rendering with the dev/prod values files produced zero resources. They were a leftover of the old per-environment App-of-Apps model; once both ApplicationSets started resolving their own destination cluster directly, dev and prod stopped needing a root Application of their own at all.
+No `values.yaml` — there's nothing left for it to hold. With only one root Application, `catalog`/`infra`/`crossplaneCompositionsPackage` would always be `enabled: true` and `applicationRepositories.repoURL` would never vary, so both the `{{- if .Values.*.enabled }}` gates and the `.Values` indirection for repo definitions were pure ceremony — every template now renders unconditionally with its repo/revision/channel hardcoded directly.
+
+There used to be a `root-dev.yaml`/`root-prod.yaml` pair too, rendering this same chart with `values-dev.yaml`/`values-prod.yaml`. Both were removed — `.Values.env` was referenced in exactly one place in this whole chart (`crossplane-compositions-package-app.yaml`, management-only), so rendering with the dev/prod values files produced zero resources. They were a leftover of the old per-environment App-of-Apps model; once both ApplicationSets started resolving their own destination cluster directly, dev and prod stopped needing a root Application of their own at all.
 
 ## How the two ApplicationSets work
 
@@ -32,14 +32,14 @@ Both are the same shape — a `matrix` of (a `merge` of two `git` generators) an
 
 ```
 matrix:
-  - merge(mergeKeys: [path.basename, path.filename]):
+  - merge(mergeKeys: [name]):
       - git: files: ["catalog/*/*.yaml"]   # or "infra/*/*.yaml"
       - git: files: ["values/*/*.yaml"]
   - clusters:
       selector.matchLabels.environment: "{{ trimSuffix \".yaml\" .path.filename }}"
 ```
 
-The `merge` left-joins each identity file (e.g. `catalog/backend/dev.yaml`) with its optional counterpart (`values/backend/dev.yaml`) by matching directory+filename — a values file is never required, since every identity file carries a `values: ""` default the paired file can override. The outer `matrix` then joins the result against whichever registered ArgoCD cluster carries a matching `environment` label, resolving `destination.server` live — never hardcoded anywhere in either repo.
+The `merge` left-joins each identity file (e.g. `catalog/backend/dev.yaml`) with its optional counterpart (`values/backend/dev.yaml`) on a flat `name: <service>-<env>` field every file carries explicitly — **not** on `path.basename`/`path.filename`, even though those are real, correctly-populated fields (confirmed by using the `values/*/*.yaml` generator standalone). ArgoCD's `merge` generator does a flat top-level key lookup, not a nested-path walk, so a nested field always evaluated to `null` there — invisible with one file per side, but a hard "duplicate key" error the moment `values/` held more than one file, since every item collapsed onto the same `null` key. A values file is never required — every identity file carries a `values: ""` default the paired file can override. The outer `matrix` then joins the merged result against whichever registered ArgoCD cluster carries a matching `environment` label, resolving `destination.server` live — never hardcoded anywhere in either repo.
 
 **Why identity and values are separate files, for both:** `catalog/`/`infra/` hold onboarding-time facts (repo, chart path, namespace) that rarely change; `values/` holds what actually changes on every deploy (image tags, toggles). Keeping them apart is a deliberate separation of concerns — it means a CI bot's write access can eventually be scoped to `values/` alone, physically unable to touch where a chart lives, even before that CI wiring exists.
 

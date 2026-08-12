@@ -1,7 +1,0 @@
-env: management
-catalog:
-  enabled: true
-infra:
-  enabled: true
-crossplaneCompositionsPackage:
-  enabled: true

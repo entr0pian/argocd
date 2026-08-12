@@ -1,18 +1,17 @@
-{{- if .Values.crossplaneCompositionsPackage.enabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: crossplane-compositions-package-{{ .Values.env }}
+  name: crossplane-compositions-package-management
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: {{ .Values.notifications.slack.channel | quote }}
-    notifications.argoproj.io/subscribe.on-sync-failed.slack: {{ .Values.notifications.slack.channel | quote }}
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: "deployments"
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: "deployments"
 spec:
   project: default
   source:
-    repoURL: {{ .Values.crossplaneCompositionsPackage.repoURL | quote }}
-    targetRevision: {{ .Values.crossplaneCompositionsPackage.targetRevision | quote }}
+    repoURL: "https://github.com/entr0pian/crossplane-compositions.git"
+    targetRevision: main
     path: deploy
     directory:
       recurse: true
@@ -23,4 +22,3 @@ spec:
     automated:
       prune: true
       selfHeal: true
-{{- end }}
