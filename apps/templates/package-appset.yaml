@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: taskapp-packages
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: "https://github.com/entr0pian/application-repositories.git"
+              revision: main
+              files:
+                - path: "packages/*/*.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  environment: "{{`{{ trimSuffix \".yaml\" .path.filename }}`}}"
+  template:
+    metadata:
+      name: "{{`{{.name}}`}}"
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: "1"
+        notifications.argoproj.io/subscribe.on-sync-succeeded.slack: "deployments"
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: "deployments"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        repoURL: "{{`{{.source.repoURL}}`}}"
+        targetRevision: "{{`{{.source.targetRevision}}`}}"
+        path: "{{`{{.source.path}}`}}"
+        helm:
+          releaseName: "{{`{{.name}}`}}"
+          values: |
+            name: {{`{{.name}}`}}
+            package:
+              repository: {{`{{.package.repository}}`}}
+              version: {{`{{.package.version}}`}}
+            pullPolicy: {{`{{.values.pullPolicy}}`}}
+      destination:
+        server: "{{`{{.server}}`}}"
+        namespace: crossplane-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
