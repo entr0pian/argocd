@@ -9,27 +9,18 @@ spec:
   generators:
     - matrix:
         generators:
-          - merge:
-              mergeKeys:
-                - name
-              generators:
-                - git:
-                    repoURL: "https://github.com/entr0pian/application-repositories.git"
-                    revision: main
-                    files:
-                      - path: "catalog/*/*.yaml"
-                - git:
-                    repoURL: "https://github.com/entr0pian/application-repositories.git"
-                    revision: main
-                    files:
-                      - path: "values/*/*.yaml"
+          - git:
+              repoURL: "https://github.com/entr0pian/application-repositories.git"
+              revision: main
+              files:
+                - path: "components/*/environments/*.yaml"
           - clusters:
               selector:
                 matchLabels:
-                  environment: "{{`{{ trimSuffix \".yaml\" .path.filename }}`}}"
+                  environment: "{{`{{ .environment }}`}}"
   template:
     metadata:
-      name: "{{`{{.name}}`}}"
+      name: "{{`{{ index .path.segments 1 }}`}}-{{`{{ .environment }}`}}"
       namespace: argocd
       annotations:
         argocd.argoproj.io/sync-wave: "5"
@@ -37,13 +28,17 @@ spec:
         - resources-finalizer.argocd.argoproj.io
     spec:
       project: default
-      source:
-        repoURL: "{{`{{.repoURL}}`}}"
-        targetRevision: "{{`{{.targetRevision}}`}}"
-        path: "{{`{{.chartPath}}`}}"
-        helm:
-          releaseName: "{{`{{.path.basename}}`}}"
-          values: "{{`{{.values}}`}}"
+      sources:
+        - repoURL: "{{`{{ .source.repoURL }}`}}"
+          targetRevision: "{{`{{ .source.targetRevision }}`}}"
+          path: "{{`{{ .source.chartPath }}`}}"
+          helm:
+            releaseName: "{{`{{ index .path.segments 1 }}`}}"
+            valueFiles:
+              - "$values/components/{{`{{ index .path.segments 1 }}`}}/values/{{`{{ .environment }}`}}.yaml"
+        - repoURL: "https://github.com/entr0pian/application-repositories.git"
+          targetRevision: main
+          ref: values
       destination:
         server: "{{`{{.server}}`}}"
         namespace: "{{`{{.namespace}}`}}"
