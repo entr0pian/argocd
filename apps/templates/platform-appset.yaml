@@ -40,18 +40,19 @@ spec:
                 selfHeal: true
               syncOptions:
                 - CreateNamespace=true
-    # platform/environments/<env>/*.yaml — every Release/Database CR in one env folder
-    # becomes one Application, applied as plain manifests into a same-named namespace.
+    # platform/environments/<env>/*.yaml — one Application per CR file, named
+    # <file-stem>-<env> (e.g. payments-db-dev, checkout-release-dev) so it can never
+    # collide with an infra/<component>/<env>.yaml Application (e.g. platform-dev).
     # `env` here selects a namespace on management, never a destination cluster — unlike
     # every other ApplicationSet in this repo, this one never varies its destination cluster.
     - git:
         repoURL: "https://github.com/entr0pian/application-repositories.git"
         revision: main
-        directories:
-          - path: "platform/environments/*"
+        files:
+          - path: "platform/environments/*/*.yaml"
         template:
           metadata:
-            name: "platform-{{`{{ .path.basename }}`}}"
+            name: "{{`{{ trimSuffix \".yaml\" .path.filename }}`}}-{{`{{ .path.basename }}`}}"
             namespace: argocd
             annotations:
               argocd.argoproj.io/sync-wave: "5"
@@ -64,7 +65,7 @@ spec:
               targetRevision: main
               path: "{{`{{ .path.path }}`}}"
               directory:
-                recurse: false
+                include: "{{`{{ .path.filename }}`}}"
             destination:
               server: https://kubernetes.default.svc
               namespace: "{{`{{ .path.basename }}`}}"
