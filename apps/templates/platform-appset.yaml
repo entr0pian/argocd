@@ -1,0 +1,87 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: taskapp-platform
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    # platform/registry/*.yaml — one Component CR per file, one Application per component.
+    # Env-agnostic: component-operator on management reconciles it into a GitHubRepository
+    # (+ ScaffoldRequest) regardless of any dev/prod deployment.
+    - git:
+        repoURL: "https://github.com/entr0pian/application-repositories.git"
+        revision: main
+        files:
+          - path: "platform/registry/*.yaml"
+        template:
+          metadata:
+            name: "component-{{`{{ .metadata.name }}`}}"
+            namespace: argocd
+            annotations:
+              argocd.argoproj.io/sync-wave: "4"
+            finalizers:
+              - resources-finalizer.argocd.argoproj.io
+          spec:
+            project: default
+            source:
+              repoURL: "https://github.com/entr0pian/application-repositories.git"
+              targetRevision: main
+              path: "platform/registry"
+              directory:
+                include: "{{`{{ .path.filename }}`}}"
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: platform
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
+    # platform/environments/<env>/*.yaml — every Release/Database CR in one env folder
+    # becomes one Application, applied as plain manifests into a same-named namespace.
+    # `env` here selects a namespace on management, never a destination cluster — unlike
+    # every other ApplicationSet in this repo, this one never varies its destination cluster.
+    - git:
+        repoURL: "https://github.com/entr0pian/application-repositories.git"
+        revision: main
+        directories:
+          - path: "platform/environments/*"
+        template:
+          metadata:
+            name: "platform-{{`{{ .path.basename }}`}}"
+            namespace: argocd
+            annotations:
+              argocd.argoproj.io/sync-wave: "5"
+            finalizers:
+              - resources-finalizer.argocd.argoproj.io
+          spec:
+            project: default
+            source:
+              repoURL: "https://github.com/entr0pian/application-repositories.git"
+              targetRevision: main
+              path: "{{`{{ .path.path }}`}}"
+              directory:
+                recurse: false
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: "{{`{{ .path.basename }}`}}"
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
+  template:
+    metadata:
+      name: placeholder
+      namespace: argocd
+    spec:
+      project: default
+      source:
+        repoURL: "https://github.com/entr0pian/application-repositories.git"
+        targetRevision: main
+      destination:
+        server: https://kubernetes.default.svc
