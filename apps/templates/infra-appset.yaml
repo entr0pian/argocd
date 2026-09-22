@@ -16,11 +16,13 @@ spec:
                 - git:
                     repoURL: "https://github.com/entr0pian/application-repositories.git"
                     revision: main
+                    requeueAfterSeconds: 30
                     files:
                       - path: "infra/*/*.yaml"
                 - git:
                     repoURL: "https://github.com/entr0pian/application-repositories.git"
                     revision: main
+                    requeueAfterSeconds: 30
                     files:
                       - path: "values/*/*.yaml"
           - clusters:
