@@ -47,6 +47,29 @@ matrix:
 
 There is no `database-app.yaml` — the backend operator (when enabled) provisions RDS itself via Crossplane.
 
+## Discovery labels (`taskapp-catalog`)
+
+Every `taskapp-catalog`-generated `Application` (one per
+`components/<service>/environments/<env>.yaml` in `application-repositories`)
+carries a stable label contract, independent of the Application's own name:
+
+```yaml
+platform.taskapp.io/component: <component>
+platform.taskapp.io/environment: <environment>
+platform.taskapp.io/type: service
+```
+
+Both values come from the same generator data already used to build the
+Application (`{{ index .path.segments 1 }}` / `{{ .environment }}`), never
+from parsing the generated name. These labels exist for external consumers —
+starting with the Backstage developer portal — to discover the Applications
+belonging to a given service via a label selector
+(`platform.taskapp.io/component=<name>,platform.taskapp.io/type=service`)
+instead of depending on the `<component>-<environment>` Application naming
+convention, which is a presentation detail, not an API. Scoped to
+`taskapp-catalog` only — `taskapp-infra`/`taskapp-packages`/`taskapp-platform`
+Applications don't carry this contract.
+
 ## Onboarding
 
 **A new service:** add `application-repositories/catalog/<service>/<env>.yaml`, plus `values/<service>/<env>.yaml` if it needs anything beyond the chart's own defaults. Nothing in this repo changes.

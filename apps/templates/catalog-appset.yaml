@@ -23,6 +23,10 @@ spec:
     metadata:
       name: "{{`{{ index .path.segments 1 }}`}}-{{`{{ .environment }}`}}"
       namespace: argocd
+      labels:
+        platform.taskapp.io/component: "{{`{{ index .path.segments 1 }}`}}"
+        platform.taskapp.io/environment: "{{`{{ .environment }}`}}"
+        platform.taskapp.io/type: service
       annotations:
         argocd.argoproj.io/sync-wave: "5"
       finalizers:
