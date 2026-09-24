@@ -41,6 +41,17 @@ spec:
             releaseName: "{{`{{ index .path.segments 1 }}`}}"
             valueFiles:
               - "$values/components/{{`{{ index .path.segments 1 }}`}}/values/{{`{{ .environment }}`}}.yaml"
+            # Platform identity, from the identity file's own path/fields
+            # (never the values file): the chart stamps these onto its
+            # workloads as platform.taskapp.io/{component,environment}
+            # labels — the same contract as this Application's labels
+            # above, so pods can be found by component + environment
+            # (BACKSTAGE_PART8.md). Charts that don't read them ignore them.
+            parameters:
+              - name: platform.component
+                value: "{{`{{ index .path.segments 1 }}`}}"
+              - name: platform.environment
+                value: "{{`{{ .environment }}`}}"
         - repoURL: "https://github.com/entr0pian/application-repositories.git"
           targetRevision: main
           ref: values
