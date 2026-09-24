@@ -59,3 +59,20 @@ spec:
         syncOptions:
           - "CreateNamespace={{`{{.createNamespace}}`}}"
           - "ServerSideApply={{`{{.serverSideApply}}`}}"
+  # Optional per-file `ignoreDifferences` (standard Application syntax). Set
+  # it only for charts that render non-deterministic fields (e.g. a webhook
+  # cert from genSignedCert, new on every render): the listed fields are
+  # neither diffed nor re-applied once the resource exists, so ArgoCD can't
+  # re-sync one half of a cert/CA pair with a fresh render. syncOptions is
+  # repeated in full because a patch replaces lists rather than merging them.
+  templatePatch: |
+    {{`{{- if hasKey . "ignoreDifferences" }}`}}
+    spec:
+      ignoreDifferences:
+        {{`{{- toYaml .ignoreDifferences | nindent 4 }}`}}
+      syncPolicy:
+        syncOptions:
+          - "CreateNamespace={{`{{.createNamespace}}`}}"
+          - "ServerSideApply={{`{{.serverSideApply}}`}}"
+          - "RespectIgnoreDifferences=true"
+    {{`{{- end }}`}}
