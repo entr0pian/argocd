@@ -27,6 +27,9 @@ spec:
         platform.taskapp.io/component: "{{`{{ index .path.segments 1 }}`}}"
         platform.taskapp.io/environment: "{{`{{ .environment }}`}}"
         platform.taskapp.io/type: service
+        # Same label contract as taskapp-platform's Applications: name is
+        # what this Application delivers (here, the service itself).
+        platform.taskapp.io/name: "{{`{{ index .path.segments 1 }}`}}"
       annotations:
         argocd.argoproj.io/sync-wave: "5"
       finalizers:

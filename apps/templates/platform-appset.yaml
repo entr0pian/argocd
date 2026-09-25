@@ -20,6 +20,14 @@ spec:
           metadata:
             name: "component-{{`{{ .metadata.name }}`}}"
             namespace: argocd
+            # Same platform.taskapp.io/* label contract as taskapp-catalog's
+            # Applications: consumers (Backstage) find an Application by
+            # these labels, never by its name. Values come from the CR
+            # itself. No environment label: a Component is env-agnostic.
+            labels:
+              platform.taskapp.io/component: "{{`{{ .metadata.name }}`}}"
+              platform.taskapp.io/type: component
+              platform.taskapp.io/name: "{{`{{ .metadata.name }}`}}"
             annotations:
               argocd.argoproj.io/sync-wave: "4"
             finalizers:
@@ -56,6 +64,16 @@ spec:
           metadata:
             name: "{{`{{ trimSuffix \".yaml\" .path.filename }}`}}-{{`{{ .path.basename }}`}}"
             namespace: argocd
+            # Same label contract as above / taskapp-catalog. type is the
+            # CR's kind (database, release); name is the CR's own name, so
+            # two Databases of one component in one environment stay
+            # distinguishable. Every Release/Database carries
+            # spec.componentRef.name (required by both CRDs).
+            labels:
+              platform.taskapp.io/component: "{{`{{ .spec.componentRef.name }}`}}"
+              platform.taskapp.io/environment: "{{`{{ .path.basename }}`}}"
+              platform.taskapp.io/type: "{{`{{ lower .kind }}`}}"
+              platform.taskapp.io/name: "{{`{{ .metadata.name }}`}}"
             annotations:
               argocd.argoproj.io/sync-wave: "5"
             finalizers:
