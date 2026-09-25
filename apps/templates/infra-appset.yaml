@@ -59,20 +59,15 @@ spec:
         syncOptions:
           - "CreateNamespace={{`{{.createNamespace}}`}}"
           - "ServerSideApply={{`{{.serverSideApply}}`}}"
-  # Optional per-file `ignoreDifferences` (standard Application syntax). Set
-  # it only for charts that render non-deterministic fields (e.g. a webhook
-  # cert from genSignedCert, new on every render): the listed fields are
-  # neither diffed nor re-applied once the resource exists, so ArgoCD can't
-  # re-sync one half of a cert/CA pair with a fresh render. syncOptions is
-  # repeated in full because a patch replaces lists rather than merging them.
-  templatePatch: |
-    {{`{{- if hasKey . "ignoreDifferences" }}`}}
-    spec:
-      ignoreDifferences:
-        {{`{{- toYaml .ignoreDifferences | nindent 4 }}`}}
-      syncPolicy:
-        syncOptions:
-          - "CreateNamespace={{`{{.createNamespace}}`}}"
-          - "ServerSideApply={{`{{.serverSideApply}}`}}"
-          - "RespectIgnoreDifferences=true"
-    {{`{{- end }}`}}
+        # The sync-wave annotation above doesn't order Applications an
+        # ApplicationSet generates, so on a fresh cluster every infra app
+        # syncs at once. An app whose CRDs come from another one (e.g.
+        # aws-load-balancer-controller's Certificates need cert-manager)
+        # fails its first sync, and automated sync never retries a failed
+        # revision on its own. Backoff lets it converge once the CRDs land.
+        retry:
+          limit: 10
+          backoff:
+            duration: 15s
+            factor: 2
+            maxDuration: 3m
