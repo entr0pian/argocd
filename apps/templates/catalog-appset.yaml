@@ -12,7 +12,7 @@ spec:
           - git:
               repoURL: "https://github.com/entr0pian/application-repositories.git"
               revision: main
-              requeueAfterSeconds: 30
+              requeueAfterSeconds: 180
               files:
                 - path: "components/*/environments/*.yaml"
           - clusters:

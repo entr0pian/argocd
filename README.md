@@ -98,6 +98,10 @@ kubectl apply -f root-management.yaml --context kind-management
 
 ArgoCD creates the three ApplicationSets and everything they generate automatically, including everything deployed into dev and prod.
 
+## Change detection
+
+A push to `application-repositories` reaches the ApplicationSets through a GitHub webhook to the ApplicationSet controller (`https://argocd-appset.gerodimos.dev/api/webhook`). New, changed or removed files create, update or delete their Applications within seconds. Pushes to the repos those Applications read go to `argocd-server`'s webhook instead. Every generator still polls (`requeueAfterSeconds: 180`), but only as a fallback for missed deliveries, e.g. while management is down. See `platform-architecture/ARGOCD_WEBHOOK_IMPLEMENTATION.md`.
+
 ## Notifications
 
 Deployment events are sent to the `#deployments` Slack channel via ArgoCD Notifications.
