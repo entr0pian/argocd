@@ -1,111 +1,124 @@
 # argocd
 
-GitOps configuration for deploying the taskapp stack to Kubernetes using ArgoCD. A single centralized ArgoCD instance runs on a dedicated management cluster and manages dev, prod, and itself — there is no per-environment App-of-Apps anymore, only one root Application (`root-management.yaml`), because everything it renders reaches *out* to dev/prod rather than being deployed by something running *in* them.
+The bootstrap for the platform's GitOps delivery. A single Argo CD instance on
+the `management` cluster deploys to every cluster (`management`, `dev`, `prod`).
+This repo only creates the **four ApplicationSets** that do that. What actually
+runs where is decided in
+[application-repositories](https://github.com/entr0pian/application-repositories).
 
-This chart's own job has shrunk to almost nothing: it bootstraps **three ApplicationSets** and gets out of the way. Everything else — every service, every piece of cluster infrastructure, every versioned platform API package — is declared as a file in [`application-repositories`](https://github.com/entr0pian/application-repositories), read directly by whichever ApplicationSet owns that kind of file. No per-app Application template lives in this repo.
+- **One root Application, applied once.** Everything else is generated from Git.
+- **No per-app config here.** Onboarding a service, a piece of infrastructure
+  or a platform resource is a file in `application-repositories`, never a
+  change to this repo.
+- **Clusters matched by label, never by URL.** Adding an environment means
+  registering a cluster, not editing every app.
 
-- **`taskapp-catalog`** reads `catalog/<service>/<env>.yaml` — one file per onboarded service per environment (`backend`, `frontend`, ...).
-- **`taskapp-infra`** reads `infra/<component>/<env>.yaml` — one file per cluster-infrastructure component per environment (`kube-prometheus-stack`, `platform`, `crossplane`, ...).
-- **`taskapp-packages`** reads `packages/<package>/<env>.yaml` — one file per versioned Crossplane platform API package per environment (`crossplane-compositions`, ...). Deploying a new version is a one-line `package.version` diff in `application-repositories` — publishing a new OCI package never deploys it by itself.
-- `taskapp-catalog`/`taskapp-infra` merge their identity file against a paired `values/<name>/<env>.yaml` — identity (repo, chart path, namespace) and parameters (image tags, toggles) are separate concerns, kept in separate files on purpose. All three resolve their target cluster from ArgoCD's own registered clusters via an `environment`-label match. No CR, no operator, no write-back commit into this repo, ever.
+## Where it fits
 
-## Repository Structure
-
-```
-argocd/
-├── root-management.yaml        # Root ArgoCD Application — the only one, applied once
-└── apps/
-    ├── Chart.yaml
-    └── templates/
-        ├── catalog-appset.yaml    # taskapp-catalog ApplicationSet
-        ├── infra-appset.yaml      # taskapp-infra ApplicationSet
-        └── package-appset.yaml    # taskapp-packages ApplicationSet
-```
-
-No `values.yaml` — there's nothing left for it to hold. With only one root Application, `catalog`/`infra`/`packages` would always be `enabled: true` and `applicationRepositories.repoURL` would never vary, so both the `{{- if .Values.*.enabled }}` gates and the `.Values` indirection for repo definitions were pure ceremony — every template now renders unconditionally with its repo/revision/channel hardcoded directly.
-
-There used to be a `root-dev.yaml`/`root-prod.yaml` pair too, rendering this same chart with `values-dev.yaml`/`values-prod.yaml`. Both were removed — they were a leftover of the old per-environment App-of-Apps model; once every ApplicationSet started resolving its own destination cluster directly, dev and prod stopped needing a root Application of their own at all.
-
-## How the three ApplicationSets work
-
-All three are the same overall shape — a `matrix` of one or two `git` generators and a `clusters` generator:
-
-```
-matrix:
-  - merge(mergeKeys: [name]):        # catalog/infra only
-      - git: files: ["catalog/*/*.yaml"]   # or "infra/*/*.yaml", "packages/*/*.yaml"
-      - git: files: ["values/*/*.yaml"]    # catalog/infra only
-  - clusters:
-      selector.matchLabels.environment: "{{ trimSuffix \".yaml\" .path.filename }}"
+```mermaid
+flowchart LR
+    ROOT["root-management.yaml"] --> AS["this repo<br/>4 ApplicationSets"]
+    AR[("application-repositories")] -->|files| AS
+    AS --> CAT["taskapp-catalog<br/>services"]
+    AS --> INF["taskapp-infra<br/>cluster infrastructure"]
+    AS --> PKG["taskapp-packages<br/>Crossplane packages"]
+    AS --> PLT["taskapp-platform<br/>Component / Release / Database"]
+    CAT --> WL["dev · prod · management"]
+    INF --> WL
+    PKG --> WL
+    PLT --> MG["management only"]
+    SR[("service repos<br/>chart/")] -.->|chart| CAT
+    HC[("helm-charts, operator repos,<br/>upstream charts")] -.->|chart| INF
 ```
 
-`catalog`/`infra`'s `merge` left-joins each identity file (e.g. `catalog/backend/dev.yaml`) with its optional counterpart (`values/backend/dev.yaml`) on a flat `name: <service>-<env>` field every file carries explicitly — **not** on `path.basename`/`path.filename`, even though those are real, correctly-populated fields (confirmed by using the `values/*/*.yaml` generator standalone). ArgoCD's `merge` generator does a flat top-level key lookup, not a nested-path walk, so a nested field always evaluated to `null` there — invisible with one file per side, but a hard "duplicate key" error the moment `values/` held more than one file, since every item collapsed onto the same `null` key. A values file is never required — every identity file carries a `values: ""` default the paired file can override. `packages` skips the `merge` entirely — it only has one git generator, since a package's contract file isn't split into a separate identity/values pair (see `application-repositories`' README for why). All three then join their result against whichever registered ArgoCD cluster carries a matching `environment` label via the outer `matrix`, resolving `destination.server` live — never hardcoded anywhere in any of these repos.
+The files `taskapp-platform` delivers are written by Backstage pull requests.
+[release-operator](https://github.com/entr0pian/release-operator) then turns
+each `Release` into the `components/` files that `taskapp-catalog` deploys. So
+Argo CD is the only thing that applies anything, whoever wrote the commit.
 
-**Why identity and values are separate files, for `catalog`/`infra`:** they hold onboarding-time facts (repo, chart path, namespace) that rarely change; `values/` holds what actually changes on every deploy (image tags, toggles). Keeping them apart is a deliberate separation of concerns — it means a CI bot's write access can eventually be scoped to `values/` alone, physically unable to touch where a chart lives, even before that CI wiring exists. `packages` doesn't need this split: the one field that changes on every promotion, `package.version`, *is* the deployed identity, so there's no separate "identity" half to carve out.
+## The four ApplicationSets
 
-**Why `source.helm.values` (a raw string) and not `source.helm.parameters` (a list) for overrides:** ApplicationSet's own template is a fixed-shape object, not a Helm-style whole-file text template — `{{ range }}`/`{{ if }}` can compute what a *string field's value* is, but can't add or remove array entries or YAML keys. A single `values: "..."` string field sidesteps this entirely: the source data just holds a raw, already-shaped YAML block, passed through verbatim (`catalog`/`infra` take it straight from their `values/` file; `package-appset.yaml` builds it inline from `.name`/`.package.*`/`.values.*` since a package contract has no pre-shaped `values` string to pass through). The same constraint is why `infra-appset.yaml` always has both `chart` and `path` fields present (empty string on whichever side is unused — ArgoCD omits an empty scalar field from the rendered Application) rather than trying to branch between them structurally, and why `syncOptions` is a fixed two-slot array (`CreateNamespace={{.createNamespace}}`, `ServerSideApply={{.serverSideApply}}`) instead of a variable-length list — an explicit `=false` is a no-op, same as the option being absent. This same reasoning is why the old `crossplane-compositions-package` Application couldn't just join `infra/` as another entry — it was a raw `source.directory` `Configuration` CR, and `source.helm`/`source.directory` are both structs that can't cleanly vanish when "unused" the way scalar fields can. `package-appset.yaml` sidesteps this permanently: every package is installed via the same tiny `charts/configuration-installer` Helm chart (from `crossplane-compositions`), so every generated Application is `source.helm`-shaped like `catalog`/`infra`, with no structural exception needed.
+| ApplicationSet | Reads (in `application-repositories`) | Generates | Destination |
+|---|---|---|---|
+| `taskapp-catalog` | `components/<svc>/environments/<env>.yaml` | one Application per service per environment, a multi-source app whose chart comes from the service's own repo and whose values file is `components/<svc>/values/<env>.yaml` | the cluster labelled `environment: <env>` |
+| `taskapp-infra` | `infra/<name>/<env>.yaml`, merged with `values/<name>/<env>.yaml` | one Application per infrastructure component per environment | the cluster labelled `environment: <env>` |
+| `taskapp-packages` | `packages/<pkg>/<env>.yaml` | one Crossplane `Configuration` per package per environment, pinned to an OCI version | the cluster labelled `environment: <env>` |
+| `taskapp-platform` | `platform/registry/*.yaml`, `platform/environments/<env>/*.yaml` | one Application per CR file, applied as-is | always `management`. `<env>` picks the namespace there |
 
-There is no `database-app.yaml` — the backend operator (when enabled) provisions RDS itself via Crossplane.
+Each one is a `matrix` of a `git` files generator and a `clusters` generator.
+The environment, taken from the file's path or content, selects the Argo CD
+cluster Secret with the matching `environment` label, which supplies
+`destination.server`. No cluster URL appears anywhere in Git.
 
-## Discovery labels (`taskapp-catalog`)
+### Ordering and labels
 
-Every `taskapp-catalog`-generated `Application` (one per
-`components/<service>/environments/<env>.yaml` in `application-repositories`)
-carries a stable label contract, independent of the Application's own name:
+- **Sync waves.** Packages sync at wave 1, `Component`s at 4, and services,
+  `Release`s and `Database`s at 5. Each infrastructure file sets its own wave.
+- **Discovery labels.** Applications from `taskapp-catalog` and
+  `taskapp-platform` carry `platform.taskapp.io/{component,environment,type,name}`.
+  Backstage finds a service's Applications through these labels, never through
+  Application names.
+- **Platform identity.** `taskapp-catalog` passes `platform.component` and
+  `platform.environment` to every service chart as Helm parameters. Scaffolded
+  charts turn them into the workload labels that metrics and the portal rely
+  on.
 
-```yaml
-platform.taskapp.io/component: <component>
-platform.taskapp.io/environment: <environment>
-platform.taskapp.io/type: service
-```
+## Design choices
 
-Both values come from the same generator data already used to build the
-Application (`{{ index .path.segments 1 }}` / `{{ .environment }}`), never
-from parsing the generated name. These labels exist for external consumers —
-starting with the Backstage developer portal — to discover the Applications
-belonging to a given service via a label selector
-(`platform.taskapp.io/component=<name>,platform.taskapp.io/type=service`)
-instead of depending on the `<component>-<environment>` Application naming
-convention, which is a presentation detail, not an API. Scoped to
-`taskapp-catalog` only — `taskapp-infra`/`taskapp-packages`/`taskapp-platform`
-Applications don't carry this contract.
+- **Identity separate from values.** For services and infrastructure, the file
+  saying *where* a chart comes from rarely changes. The values file (image tag,
+  toggles) changes on every deploy. Splitting them keeps automated writers to
+  the values side.
+- **Platform resources always go to management.** Platform APIs and their
+  operators live only there, so no workload cluster can change the platform.
+- **Fixed-shape templates.** An ApplicationSet template can fill in field
+  values but can't add or remove keys. Optional parts are therefore empty
+  strings (`chart` vs `path`), fixed `syncOptions` slots, and a
+  pre-rendered `values` string, never conditional structure.
+- **Packages install through one tiny chart.** Each Crossplane package is a
+  Helm-shaped Application rendering a single `Configuration`, so it fits the
+  same template as everything else.
 
-## Onboarding
+## Clusters
 
-**A new service:** add `application-repositories/catalog/<service>/<env>.yaml`, plus `values/<service>/<env>.yaml` if it needs anything beyond the chart's own defaults. Nothing in this repo changes.
-
-**A new piece of infrastructure:** add `application-repositories/infra/<component>/<env>.yaml` the same way. See that repo's README for the exact shape.
-
-**A new versioned platform API package:** add `application-repositories/packages/<package>/<env>.yaml` the same way. `package-appset.yaml` is generic over the contract — nothing here changes, for this package or any future one.
-
-## Environments
-
-| Environment | Cluster |
-|---|---|
-| `dev` | `kind-dev` |
-| `prod` | `kind-prod` |
-| `management` | `kind-management` (where ArgoCD itself runs — the only cluster this repo has a root Application for) |
-
-All three clusters are registered in ArgoCD with an `environment: <name>` label on their cluster Secret — `dev`/`prod` via `bootstrap-cluster/kind/setup-clusters.sh`'s Docker-internal-IP registration, `management` via an explicit Secret for the otherwise-implicit `https://kubernetes.default.svc` local cluster (same script). This label is what every `clusters` generator in this repo matches on; nothing here references a cluster URL directly.
-
-## Bootstrap
-
-ArgoCD runs on the management cluster. After bootstrapping (see `bootstrap-cluster/`), apply the one root manifest:
-
-```bash
-kubectl apply -f root-management.yaml --context kind-management
-```
-
-ArgoCD creates the three ApplicationSets and everything they generate automatically, including everything deployed into dev and prod.
+All three clusters are EKS, created by Terraform. Argo CD runs on `management`
+and reaches it as the in-cluster server. Each workload cluster's Terraform
+publishes its endpoint and CA to AWS Secrets Manager. External Secrets turns
+that into an Argo CD cluster Secret labelled `environment: <env>`, and Argo CD
+authenticates through its own EKS Pod Identity, with no stored credential. When a
+cluster is destroyed, its Secret disappears and Argo CD forgets it.
 
 ## Change detection
 
-A push to `application-repositories` reaches the ApplicationSets through a GitHub webhook to the ApplicationSet controller (`https://argocd-appset.gerodimos.dev/api/webhook`). New, changed or removed files create, update or delete their Applications within seconds. Pushes to the repos those Applications read go to `argocd-server`'s webhook instead. Every generator still polls (`requeueAfterSeconds: 180`), but only as a fallback for missed deliveries, e.g. while management is down. See `platform-architecture/ARGOCD_WEBHOOK_IMPLEMENTATION.md`.
+GitHub push webhooks deliver changes within seconds. Pushes to
+`application-repositories` go to the ApplicationSet controller, which
+creates, updates or deletes Applications. Pushes to the repos those
+Applications read go to `argocd-server`. Every generator still polls every
+180s as a fallback, for example for pushes made while `management` was down.
 
 ## Notifications
 
-Deployment events are sent to the `#deployments` Slack channel via ArgoCD Notifications.
+Argo CD Notifications posts to Slack `#deployments`. Packages always notify.
+Infrastructure notifies when its file sets `notify: true`. Services and
+platform resources don't notify. Their rollout state is shown on the service's
+Deployments tab in Backstage.
 
-- Every `taskapp-packages`-generated Application — always subscribed (`on-sync-succeeded`/`on-sync-failed`), fixed in `package-appset.yaml`'s template.
-- Every `taskapp-infra`-generated Application — controlled per-file by that component's `notify: true`/`false` field in `application-repositories/infra/<component>/<env>.yaml`.
-- Every `taskapp-catalog`-generated Application — never subscribed; not a field in the catalog file shape.
+## Bootstrap
+
+After Argo CD is installed on `management`:
+
+```sh
+kubectl apply -f root-management.yaml
+```
+
+The root Application renders `apps/`, and the four ApplicationSets take it
+from there.
+
+```
+root-management.yaml          # the root Application
+apps/templates/
+├── catalog-appset.yaml       # taskapp-catalog
+├── infra-appset.yaml         # taskapp-infra
+├── package-appset.yaml       # taskapp-packages
+└── platform-appset.yaml      # taskapp-platform
+```
