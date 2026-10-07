@@ -1,0 +1,81 @@
+# One Application per service per environment whose database schema is
+# released: components/<svc>/schema/<env>.yaml, written by schema-operator
+# from a DatabaseSchema. The chart is the service's schema package
+# (ghcr.io/<owner>/<repo>/schema, one version per commit that changed its
+# migrations/): the platform's database-schema chart with those migrations
+# inside. It renders an ExternalSecret for the database's published connection
+# details, a ConfigMap of the migrations and an AtlasMigration, which Atlas
+# Operator on that cluster applies. Separate from the service's own
+# Application (taskapp-catalog), so the schema and the code sync, fail and
+# roll back independently.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: taskapp-schemas
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: "https://github.com/entr0pian/application-repositories.git"
+              revision: main
+              requeueAfterSeconds: 180
+              files:
+                - path: "components/*/schema/*.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  environment: "{{`{{ .environment }}`}}"
+  template:
+    metadata:
+      name: "{{`{{ .component }}`}}-schema-{{`{{ .environment }}`}}"
+      namespace: argocd
+      labels:
+        platform.taskapp.io/component: "{{`{{ .component }}`}}"
+        platform.taskapp.io/environment: "{{`{{ .environment }}`}}"
+        platform.taskapp.io/type: schema
+        # Same label contract as the other ApplicationSets: name is what this
+        # Application delivers (here, the component's schema).
+        platform.taskapp.io/name: "{{`{{ .component }}`}}-schema"
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        # OCI Helm chart: repoURL without oci://, plus chart and version.
+        repoURL: "{{`{{ .repoURL }}`}}"
+        chart: "{{`{{ .chart }}`}}"
+        targetRevision: "{{`{{ .version }}`}}"
+        helm:
+          # The chart names its resources after the release:
+          # <svc>-schema, <svc>-schema-database, <svc>-schema-migrations.
+          releaseName: "{{`{{ .component }}`}}-schema"
+          # forceString: a commit SHA can be all digits, and Helm would
+          # otherwise read it as a number.
+          parameters:
+            - name: database.remoteRef
+              value: "{{`{{ .database.remoteRef }}`}}"
+              forceString: true
+            - name: platform.component
+              value: "{{`{{ .component }}`}}"
+              forceString: true
+            - name: platform.environment
+              value: "{{`{{ .environment }}`}}"
+              forceString: true
+            - name: version
+              value: "{{`{{ .commit }}`}}"
+              forceString: true
+      destination:
+        server: "{{`{{.server}}`}}"
+        namespace: "{{`{{ .namespace }}`}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

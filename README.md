@@ -2,7 +2,7 @@
 
 The bootstrap for the platform's GitOps delivery. A single Argo CD instance on
 the `management` cluster deploys to every cluster (`management`, `dev`, `prod`).
-This repo only creates the **four ApplicationSets** that do that. What actually
+This repo only creates the **five ApplicationSets** that do that. What actually
 runs where is decided in
 [application-repositories](https://github.com/entr0pian/application-repositories).
 
@@ -17,26 +17,31 @@ runs where is decided in
 
 ```mermaid
 flowchart LR
-    ROOT["root-management.yaml"] --> AS["this repo<br/>4 ApplicationSets"]
+    ROOT["root-management.yaml"] --> AS["this repo<br/>5 ApplicationSets"]
     AR[("application-repositories")] -->|files| AS
     AS --> CAT["taskapp-catalog<br/>services"]
     AS --> INF["taskapp-infra<br/>cluster infrastructure"]
     AS --> PKG["taskapp-packages<br/>Crossplane packages"]
-    AS --> PLT["taskapp-platform<br/>Component / Release / Database"]
+    AS --> PLT["taskapp-platform<br/>Component / Release / Database / DatabaseSchema"]
+    AS --> SCH["taskapp-schemas<br/>database schemas"]
     CAT --> WL["dev · prod · management"]
+    SCH --> WL
     INF --> WL
     PKG --> WL
     PLT --> MG["management only"]
     SR[("service repos<br/>chart/")] -.->|chart| CAT
+    SP[("ghcr.io<br/>&lt;repo&gt;/schema packages")] -.->|chart| SCH
     HC[("helm-charts, operator repos,<br/>upstream charts")] -.->|chart| INF
 ```
 
 The files `taskapp-platform` delivers are written by Backstage pull requests.
 [release-operator](https://github.com/entr0pian/release-operator) then turns
-each `Release` into the `components/` files that `taskapp-catalog` deploys. So
+each `Release` into the `components/` files that `taskapp-catalog` deploys, and
+[schema-operator](https://github.com/entr0pian/schema-operator) turns each
+`DatabaseSchema` into the `components/` file that `taskapp-schemas` deploys. So
 Argo CD is the only thing that applies anything, whoever wrote the commit.
 
-## The four ApplicationSets
+## The five ApplicationSets
 
 | ApplicationSet | Reads (in `application-repositories`) | Generates | Destination |
 |---|---|---|---|
@@ -44,6 +49,7 @@ Argo CD is the only thing that applies anything, whoever wrote the commit.
 | `taskapp-infra` | `infra/<name>/<env>.yaml`, merged with `values/<name>/<env>.yaml` | one Application per infrastructure component per environment | the cluster labelled `environment: <env>` |
 | `taskapp-packages` | `packages/<pkg>/<env>.yaml` | one Crossplane `Configuration` per package per environment, pinned to an OCI version | the cluster labelled `environment: <env>` |
 | `taskapp-platform` | `platform/registry/*.yaml`, `platform/environments/<env>/*.yaml` | one Application per CR file, applied as-is | always `management`. `<env>` picks the namespace there |
+| `taskapp-schemas` | `components/<svc>/schema/<env>.yaml` | one Application per service per environment whose schema is released: the service's schema package (an OCI chart, one version per commit), which renders an `AtlasMigration` for Atlas Operator | the cluster labelled `environment: <env>` |
 
 Each one is a `matrix` of a `git` files generator and a `clusters` generator.
 The environment, taken from the file's path or content, selects the Argo CD
@@ -53,9 +59,9 @@ cluster Secret with the matching `environment` label, which supplies
 ### Ordering and labels
 
 - **Sync waves.** Packages sync at wave 1, `Component`s at 4, and services,
-  `Release`s and `Database`s at 5. Each infrastructure file sets its own wave.
-- **Discovery labels.** Applications from `taskapp-catalog` and
-  `taskapp-platform` carry `platform.taskapp.io/{component,environment,type,name}`.
+  schemas, `Release`s, `Database`s and `DatabaseSchema`s at 5. Each infrastructure file sets its own wave.
+- **Discovery labels.** Applications from `taskapp-catalog`,
+  `taskapp-schemas` and `taskapp-platform` carry `platform.taskapp.io/{component,environment,type,name}`.
   Backstage finds a service's Applications through these labels, never through
   Application names.
 - **Platform identity.** `taskapp-catalog` passes `platform.component` and
@@ -111,7 +117,7 @@ After Argo CD is installed on `management`:
 kubectl apply -f root-management.yaml
 ```
 
-The root Application renders `apps/`, and the four ApplicationSets take it
+The root Application renders `apps/`, and the five ApplicationSets take it
 from there.
 
 ```
@@ -120,5 +126,6 @@ apps/templates/
 ├── catalog-appset.yaml       # taskapp-catalog
 ├── infra-appset.yaml         # taskapp-infra
 ├── package-appset.yaml       # taskapp-packages
-└── platform-appset.yaml      # taskapp-platform
+├── platform-appset.yaml      # taskapp-platform
+└── schema-appset.yaml        # taskapp-schemas
 ```
